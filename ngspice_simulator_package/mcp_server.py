@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional
+from fastapi import UploadFile, File
 
 from .simulation_manager import SimulationManager # Assuming simulation_manager.py is in the same directory
 
@@ -91,6 +92,44 @@ async def get_artifact(sim_id: str, artifact_filename: str):
         raise HTTPException(status_code=400, detail="Invalid artifact path.")
 
     return FileResponse(artifact_path)
+
+async def _save_and_validate_file(directory: str, file: UploadFile):
+    if not file.filename.endswith(".j2"):
+        raise HTTPException(status_code=400, detail="Invalid file type. Only .j2 files are allowed.")
+
+    file_path = os.path.join(directory, file.filename)
+    # Ensure the directory exists
+    os.makedirs(directory, exist_ok=True)
+
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
+    return {"filename": file.filename, "message": f"Successfully uploaded to {directory}"}
+
+@app.post("/upload_model", summary="Upload a new model template")
+async def upload_model(file: UploadFile = File(...)):
+    """
+    Uploads a new Jinja2 model template file to the 'models' directory.
+    The file must have a .j2 extension.
+    """
+    try:
+        return await _save_and_validate_file(manager.models_dir, file)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to upload model: {str(e)}")
+
+@app.post("/upload_control", summary="Upload a new control template")
+async def upload_control(file: UploadFile = File(...)):
+    """
+    Uploads a new Jinja2 control template file to the 'controls' directory.
+    The file must have a .j2 extension.
+    """
+    try:
+        return await _save_and_validate_file(manager.controls_dir, file)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to upload control: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=53328)
