@@ -21,11 +21,11 @@
 * Randles Circuit Model for Li-ion Battery (5-stage Cauer Warburg, ngspice-ready)
 * ------------------------------------------------------------
 * Top-level parameters (replace defaults or override when invoking ngspice)
-.param Ru_val = {{ Ru_val }}     ; Ohmic Resistance (Ohm) - default
-.param Rct_val = {{ Rct_val }}   ; Charge Transfer Resistance (Ohm)
-.param Cdl_val = {{ Cdl_val }}   ; Double Layer Capacitance (F)
-.param Wsig_val = {{ Wsig_val }} ; Warburg coefficient (Ohm) - total diffusion resistance approx
-.param Tw_val = {{ Tw_val }}       ; Warburg diffusion time constant (s)
+.param Ru_val = 0.02     ; Ohmic Resistance (Ohm) - default
+.param Rct_val = 0.05   ; Charge Transfer Resistance (Ohm)
+.param Cdl_val = 0.0005   ; Double Layer Capacitance (F)
+.param Wsig_val = 10 ; Warburg coefficient (Ohm) - total diffusion resistance approx
+.param Tw_val = 10       ; Warburg diffusion time constant (s)
 
 
 
@@ -80,3 +80,60 @@ R_ct 1 2 {Rct_val}
 X_warburg 2 N Warburg
 
 .ends RandlesCell
+
+* --- control ---
+
+
+* ---
+* name: eis_control
+* description: "Performs AC sweep for Electrochemical Impedance Spectroscopy (EIS)."
+* input_parameters:
+*   ppd: {type: int, default: 10, units: "points/decade", range: [1, 100]}
+*   fmin: {type: float, default: 0.001, units: "Hz", range: [1e-6, 100.0]}
+*   fmax: {type: float, default: 10000.0, units: "Hz", range: [1.0, 1e9]}
+* expected_outputs:
+*   - "eis_data.txt"
+*   - "nyquist_plot.png"
+* constraints:
+*   - "fmax > fmin"
+*   - "ppd > 0"
+* ---
+
+
+
+
+* --- control ---
+
+* Test Circuit - Stimulus for EIS
+V_source 100 0 AC 1V
+X_cell 100 0 RandlesCell
+
+* AC Analysis settings
+.ac dec 10 0.001 10000000000.0
+
+.control
+  run
+  set units = si
+  
+  * Define the Frequency vector
+  let freq = frequency
+  
+  * Calculate Complex Impedance
+  * Note: I(V_source) is negative convention in SPICE, so we use -I to get positive Z
+  let Z = V(100) / -I(V_source)
+  
+  * Extract Components for EIS Analysis
+  let Z_mag = abs(Z)
+  let Z_phase = ph(Z)
+  let Z_real = real(Z)
+  let Z_imag = imag(Z)
+  
+  * Output to console (for parsing)
+  print freq Z_mag Z_phase
+  
+  * Save data to file
+  wrdata runs/20251121083927_54ed2db6/eis_data.txt Z_real Z_imag Z_mag Z_phase
+
+.endc
+
+.end

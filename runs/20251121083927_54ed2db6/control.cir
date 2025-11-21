@@ -25,7 +25,7 @@ V_source 100 0 AC 1V
 X_cell 100 0 RandlesCell
 
 * AC Analysis settings
-.ac dec {{ ppd }} {{ fmin }} {{ fmax }}
+.ac dec 10 0.001 10000000000.0
 
 .control
   run
@@ -48,9 +48,8 @@ X_cell 100 0 RandlesCell
   print freq Z_mag Z_phase
   
   * Save data to file
-  wrdata {{ output_data_file }} Z_real Z_imag Z_mag Z_phase
+  wrdata eis_data.txt Z_real Z_imag Z_mag Z_phase
 
 .endc
 
 .end
-

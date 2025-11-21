@@ -24,8 +24,9 @@ The EIS simulation was performed using ngspice with the modified `randles_model.
 A Python script (`nyquist_plot.py`) was used to parse the ngspice simulation log, convert the polar impedance data to rectangular coordinates (real and imaginary parts), and generate a Nyquist plot. The Nyquist plot typically displays the negative imaginary part of impedance (-Z_imag) against the real part of impedance (Z_real).
 
 **Generated Nyquist Plot:**
-The Nyquist plot for the 50% SOH simulation is located at `runs/20251119080957_dc6af700/nyquist_plot.png`.
-A manifest detailing the simulation parameters and artifact paths is available at `runs/20251119080957_dc6af700/manifest.json`.
+The Nyquist plot for the 50% SOH simulation is located at `runs/20251121083927_54ed2db6/nyquist_plot.png`.
+A manifest detailing the simulation parameters and artifact paths is available at `runs/20251121083927_54ed2db6/manifest.json`.
+The ngspice log for this run is at `runs/20251121083927_54ed2db6/ngspice.log`.
 
 The plot would show:
 *   A semicircle at higher frequencies, representing the parallel combination of `Rct` and `Cdl` (charge transfer process).

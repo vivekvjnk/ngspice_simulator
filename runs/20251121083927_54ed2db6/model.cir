@@ -21,11 +21,11 @@
 * Randles Circuit Model for Li-ion Battery (5-stage Cauer Warburg, ngspice-ready)
 * ------------------------------------------------------------
 * Top-level parameters (replace defaults or override when invoking ngspice)
-.param Ru_val = {{ Ru_val }}     ; Ohmic Resistance (Ohm) - default
-.param Rct_val = {{ Rct_val }}   ; Charge Transfer Resistance (Ohm)
-.param Cdl_val = {{ Cdl_val }}   ; Double Layer Capacitance (F)
-.param Wsig_val = {{ Wsig_val }} ; Warburg coefficient (Ohm) - total diffusion resistance approx
-.param Tw_val = {{ Tw_val }}       ; Warburg diffusion time constant (s)
+.param Ru_val = 0.02     ; Ohmic Resistance (Ohm) - default
+.param Rct_val = 0.05   ; Charge Transfer Resistance (Ohm)
+.param Cdl_val = 0.0005   ; Double Layer Capacitance (F)
+.param Wsig_val = 10 ; Warburg coefficient (Ohm) - total diffusion resistance approx
+.param Tw_val = 10       ; Warburg diffusion time constant (s)
 
 
 
