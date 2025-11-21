@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cmath
 import datetime
+import yaml # Import yaml for metadata parsing
 
 class SimulationManager:
     """
@@ -46,6 +47,64 @@ class SimulationManager:
         self.runs_dir = runs_dir
         self.env = jinja2.Environment(loader=jinja2.FileSystemLoader([models_dir, controls_dir]))
         os.makedirs(self.runs_dir, exist_ok=True)
+
+    def parse_metadata(self, file_path):
+        """
+        Parses YAML metadata from the top of a .j2 file.
+        Metadata is expected to be between `* ---` and `* ---` lines.
+        """
+        with open(file_path, 'r') as f:
+            content = f.read()
+
+        metadata_start_tag = '* ---\n'
+        metadata_end_tag = '* ---\n'
+
+        start_index = content.find(metadata_start_tag)
+        end_index = content.find(metadata_end_tag, start_index + len(metadata_start_tag))
+
+        if start_index == -1 or end_index == -1:
+            return {} # No metadata found
+
+        metadata_block = content[start_index + len(metadata_start_tag):end_index].strip()
+        
+        # Remove the leading '* ' from each line in the metadata block
+        cleaned_metadata_block = '\n'.join([line[2:] if line.startswith('* ') else line for line in metadata_block.splitlines()])
+
+        try:
+            metadata = yaml.safe_load(cleaned_metadata_block)
+            return metadata
+        except yaml.YAMLError as e:
+            print(f"Error parsing YAML metadata from {file_path}: {e}")
+            return {}
+
+    def list_models(self):
+        """Lists available model templates with their metadata."""
+        models = []
+        for filename in os.listdir(self.models_dir):
+            if filename.endswith(".j2"):
+                file_path = os.path.join(self.models_dir, filename)
+                metadata = self.parse_metadata(file_path)
+                models.append({"name": filename, "metadata": metadata})
+        return models
+
+    def list_controls(self):
+        """Lists available control templates with their metadata."""
+        controls = []
+        for filename in os.listdir(self.controls_dir):
+            if filename.endswith(".j2"):
+                file_path = os.path.join(self.controls_dir, filename)
+                metadata = self.parse_metadata(file_path)
+                controls.append({"name": filename, "metadata": metadata})
+        return controls
+
+    def read_results(self, sim_id):
+        """Retrieves the manifest for a given simulation ID."""
+        manifest_path = os.path.join(self.runs_dir, sim_id, "manifest.json")
+        if os.path.exists(manifest_path):
+            with open(manifest_path, 'r') as f:
+                return json.load(f)
+        else:
+            return None
 
     def _render_template(self, template_path, params):
         template = self.env.get_template(template_path)
@@ -211,37 +270,4 @@ class SimulationManager:
             print(f"Error: {eis_data_filepath} not found.")
         except Exception as e:
             print(f"Error generating Nyquist plot from {eis_data_filepath}: {e}")
-
-if __name__ == '__main__':
-    manager = SimulationManager()
-
-    # Define model parameters for 50% SOH
-    model_params_50_soh = {
-        "Ru_val": 0.02,
-        "Rct_val": 0.05,
-        "Cdl_val": 5e-4, # 0.5mF
-        "Wsig_val": 10,
-        "Tw_val": 10
-    }
-
-    # Define control parameters for EIS
-    control_params_eis = {
-        "ppd": 10,       # Points per decade
-        "fmin": 1e-3,    # Minimum frequency (1 mHz)
-        "fmax": 10e9,    # Maximum frequency (10 kHz)
-        "output_data_file": "eis_data.txt" # Placeholder, will be updated with full path
-    }
-
-    try:
-        manifest = manager.start_sim(
-            model_name="randles_cell.j2",
-            model_params=model_params_50_soh,
-            control_name="eis_control.j2",
-            control_params=control_params_eis
-        )
-        print("Simulation and artifact generation complete.")
-        print(json.dumps(manifest, indent=2))
-    except Exception as e:
-        print(f"An error occurred during simulation: {e}")
-
 
