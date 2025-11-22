@@ -175,30 +175,47 @@ class SimulationManager:
             with open(merged_filepath, "w") as f:
                 f.write(merged_content)
 
-            ngspice_result = subprocess.run(
-                ["ngspice", "-b", merged_filepath],
-                capture_output=True,
-                text=True,
-                env=os.environ.copy() # Pass current environment to subprocess
-            )
-            # Log ngspice stdout and stderr for debugging, even if check=False
-            with open(ngspice_log_filepath, "w") as f:
-                f.write(ngspice_result.stdout)
-                f.write(ngspice_result.stderr)
-            
-            if ngspice_result.returncode != 0:
-                print(f"ngspice finished with non-zero exit code ({ngspice_result.returncode}). Check {ngspice_log_filepath} for details.")
-            else:
-                print(f"ngspice simulation for {sim_id} completed.")
-        except subprocess.CalledProcessError as e:
-            print(f"ngspice simulation failed for {sim_id}.")
-            print(f"Stdout:\n{e.stdout}")
-            print(f"Stderr:\n{e.stderr}")
-            with open(ngspice_log_filepath, "w") as f:
-                f.write(e.stdout)
-                f.write(e.stderr)
-            raise
+            command = ["ngspice", "-b", merged_filepath]
+            print(f"Executing ngspice command: {' '.join(command)}")
+            try:
+                ngspice_result = subprocess.run(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    env=os.environ.copy(), # Pass current environment to subprocess
+                    timeout=60 # Add a 60-second timeout
+                )
+                print(f"ngspice stdout:\n{ngspice_result.stdout}")
+                print(f"ngspice stderr:\n{ngspice_result.stderr}")
 
+                with open(ngspice_log_filepath, "w") as f:
+                    f.write(ngspice_result.stdout)
+                    f.write(ngspice_result.stderr)
+                
+                if ngspice_result.returncode != 0:
+                    print(f"ngspice finished with non-zero exit code ({ngspice_result.returncode}). Check {ngspice_log_filepath} for details.")
+                else:
+                    print(f"ngspice simulation for {sim_id} completed.")
+            except subprocess.TimeoutExpired as e:
+                print(f"ngspice command timed out after {e.timeout} seconds.")
+                print(f"Stdout during timeout:\n{e.stdout}")
+                print(f"Stderr during timeout:\n{e.stderr}")
+                with open(ngspice_log_filepath, "w") as f:
+                    f.write("TimeoutExpired:\n")
+                    f.write(f"Stdout:\n{e.stdout}\n")
+                    f.write(f"Stderr:\n{e.stderr}\n")
+                raise # Re-raise the exception to propagate the timeout error
+            except subprocess.CalledProcessError as e:
+                print(f"ngspice simulation failed for {sim_id}.")
+                print(f"Stdout:\n{e.stdout}")
+                print(f"Stderr:\n{e.stderr}")
+                with open(ngspice_log_filepath, "w") as f:
+                    f.write(e.stdout)
+                    f.write(e.stderr)
+                raise
+        except Exception as e:
+            print(f"An unexpected error occurred while running ngspice: {e}")
+            raise
         # 5. Generate Manifest
         manifest = {
             "sim_id": sim_id,
