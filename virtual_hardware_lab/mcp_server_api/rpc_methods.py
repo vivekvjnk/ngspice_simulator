@@ -3,15 +3,18 @@ import logging
 import json
 import base64
 import inspect
-from typing import Any, Dict, Callable
+from typing import Any, Dict, Optional, Callable, Union
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 from pydantic import ValidationError
 
 from virtual_hardware_lab.simulation_core.simulation_manager import SimulationManager
 from virtual_hardware_lab.mcp_server_api.schemas import RunExperimentRequest
 from virtual_hardware_lab.mcp_server_api.utils import safe_join, save_and_validate_template_file
+from virtual_hardware_lab.mcp_server_api.schemas import RunExperimentRequest, JSONRPCRequest
+from virtual_hardware_lab.mcp_server_api.utils import jsonrpc_success, jsonrpc_error, safe_join, save_and_validate_template_file
 from virtual_hardware_lab.mcp_server_api.tool_definitions import TOOLS
+import asyncio
 
 logger = logging.getLogger("virtual_hardware_lab")
 
@@ -196,4 +199,98 @@ RPC_METHODS: Dict[str, Callable] = {
     "tools/call": rpc_tools_call,
 }
 
+
+
+# -------------------------
+# Dispatcher
+# -------------------------
+async def dispatch_jsonrpc_old(payload: dict):
+    try:
+        req = JSONRPCRequest.model_validate(payload)
+    except ValidationError as e:
+        logger.warning("Invalid JSON-RPC request payload: %s", e)
+        return 400, jsonrpc_error(-32600, "Invalid Request", None, data=e.errors())
+
+    method = req.method
+    params = req.params or {}
+    id_val = req.id
+    is_notification = id_val is None
+
+    if method not in RPC_METHODS:
+        if is_notification:
+            return Response(status_code=204)
+        return 404, jsonrpc_error(-32601, f"Method not found: {method}", id_val)
+
+    try:
+        handler = RPC_METHODS[method]
+        
+        if inspect.iscoroutinefunction(handler):
+            result = await handler(params)
+        else:
+            result = handler(params)
+
+        if is_notification:
+            return Response(status_code=204)
+
+        if result is None:
+            return 200, jsonrpc_success(None, id_val)
+
+        return 200, jsonrpc_success(result, id_val)
+    
+    except HTTPException as http_exc:
+        return http_exc.status_code, jsonrpc_error(
+            -32000 - http_exc.status_code, 
+            http_exc.detail, 
+            id_val
+        )
+    except ValidationError as e:
+        return 400, jsonrpc_error(-32602, "Invalid params", id_val, data=e.errors())
+    except Exception as e:
+        logger.exception("Internal error in RPC handler for %s", method)
+        return 500, jsonrpc_error(-32603, "Internal error", id_val, data=str(e))
+
+async def dispatch_jsonrpc(payload: dict):
+    try:
+        req = JSONRPCRequest.model_validate(payload)
+    except ValidationError as e:
+        logger.warning("Invalid JSON-RPC request payload: %s", e)
+        return 400, jsonrpc_error(-32600, "Invalid Request", None, data=e.errors())
+
+    method = req.method
+    params = req.params or {}
+    id_val = req.id
+    is_notification = id_val is None
+
+    if method not in RPC_METHODS:
+        if is_notification:
+            return Response(status_code=204)
+        return 404, jsonrpc_error(-32601, f"Method not found: {method}", id_val)
+
+    try:
+        handler = RPC_METHODS[method]
+        
+        if inspect.iscoroutinefunction(handler):
+            result = await handler(params)
+        else:
+            result = handler(params)
+
+        if is_notification:
+            return Response(status_code=204)
+
+        if result is None:
+            return 200, jsonrpc_success(None, id_val)
+
+        return 200, jsonrpc_success(result, id_val)
+    
+    except HTTPException as http_exc:
+        return http_exc.status_code, jsonrpc_error(
+            -32000 - http_exc.status_code, 
+            http_exc.detail, 
+            id_val
+        )
+    except ValidationError as e:
+        return 400, jsonrpc_error(-32602, "Invalid params", id_val, data=e.errors())
+    except Exception as e:
+        logger.exception("Internal error in RPC handler for %s", method)
+        return 500, jsonrpc_error(-32603, "Internal error", id_val, data=str(e))
 

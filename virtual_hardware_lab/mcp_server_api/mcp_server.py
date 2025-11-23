@@ -56,7 +56,7 @@ rpc_methods.set_rpc_globals(manager, BASE_URL)
 
 @app.post("/jsonrpc", summary="JSON-RPC 2.0 endpoint")
 async def jsonrpc_endpoint(payload: Dict = Body(...)):
-    status_or_resp = await dispatch_jsonrpc(payload)
+    status_or_resp = await rpc_methods.dispatch_jsonrpc(payload)
     if isinstance(status_or_resp, Response):
         return status_or_resp
     status, content = status_or_resp
@@ -69,7 +69,7 @@ async def root_post(request: Request, payload: Dict = Body(None)):
     if not payload:
         return {"message": "Virtual Hardware Lab MCP Server received a POST request!"}
     if isinstance(payload, dict) and payload.get("jsonrpc") == "2.0" and payload.get("method"):
-        status_or_resp = await dispatch_jsonrpc(payload)
+        status_or_resp = await rpc_methods.dispatch_jsonrpc(payload)
         if isinstance(status_or_resp, Response):
             return status_or_resp
         status, content = status_or_resp
