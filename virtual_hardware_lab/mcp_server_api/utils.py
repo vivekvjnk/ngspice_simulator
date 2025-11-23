@@ -19,14 +19,13 @@ def jsonrpc_error(code: int, message: str, id_val: Any = None, data: Any = None)
     return {"jsonrpc": "2.0", "error": err, "id": id_val}
 
 
-def _parse_metadata_from_content(content_bytes: bytes):
+def _parse_metadata_from_content(content: str):
     """
     Parses YAML metadata from the top of a .j2 file's content.
     Metadata is expected to be between `* ---` and `* ---` lines.
-    Returns a tuple of (metadata_dict, content_without_metadata_bytes).
-    If no metadata is found, returns ({}, original_content_bytes).
+    Returns a tuple of (metadata_dict, content_without_metadata).
+    If no metadata is found, returns ({}, original_content).
     """
-    content = content_bytes.decode('utf-8')
     metadata_start_tag = '* ---\n'
     metadata_end_tag = '* ---\n'
 
@@ -34,7 +33,7 @@ def _parse_metadata_from_content(content_bytes: bytes):
     end_index = content.find(metadata_end_tag, start_index + len(metadata_start_tag))
 
     if start_index == -1 or end_index == -1:
-        return {}, content_bytes # No metadata found
+        return {}, content # No metadata found
 
     metadata_block = content[start_index + len(metadata_start_tag):end_index].strip()
 
@@ -49,7 +48,7 @@ def _parse_metadata_from_content(content_bytes: bytes):
     
     # Content after the metadata block
     content_without_metadata = content[end_index + len(metadata_end_tag):].strip()
-    return metadata, content_without_metadata.encode('utf-8')
+    return metadata, content_without_metadata
 
 async def _validate_spice_code(spice_code: str):
     """
@@ -87,12 +86,12 @@ def safe_join(base_dir: str, *paths: str) -> str:
         raise ValueError("Invalid path (possible path traversal).")
     return candidate
 
-async def save_and_validate_template_file(directory: str, filename: str, content_bytes: bytes):
+async def save_and_validate_template_file(directory: str, filename: str, content: str):
     if not filename.endswith(".j2"):
         raise HTTPException(status_code=400, detail="Invalid file type. Only .j2 files are allowed.")
 
     # 1. Parse metadata to get default parameters for rendering
-    metadata, template_content_bytes = _parse_metadata_from_content(content_bytes)
+    metadata, template_content = _parse_metadata_from_content(content)
     template_params = {}
     if 'parameters' in metadata:
         for param_name, param_info in metadata['parameters'].items():

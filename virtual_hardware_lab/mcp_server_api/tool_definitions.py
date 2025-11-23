@@ -57,9 +57,9 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "filename": {"type": "string"},
-                "content_base64": {"type": "string"},
+                "content": {"type": "string"},
             },
-            "required": ["filename", "content_base64"],
+            "required": ["filename", "content"],
         },
         "outputSchema": None,
         "version": "1.0",
@@ -73,9 +73,9 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "filename": {"type": "string"},
-                "content_base64": {"type": "string"},
+                "content": {"type": "string"},
             },
-            "required": ["filename", "content_base64"],
+            "required": ["filename", "content"],
         },
         "outputSchema": None,
         "version": "1.0",

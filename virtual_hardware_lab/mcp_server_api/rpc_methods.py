@@ -1,7 +1,6 @@
 import os
 import logging
 import json
-import base64
 import inspect
 from typing import Any, Dict, Optional, Callable, Union
 
@@ -105,24 +104,22 @@ def rpc_run_experiment(params: Dict[str, Any]):
 
 async def rpc_upload_model(params: Dict[str, Any]):
     filename = params.get("filename")
-    content_base64 = params.get("content_base64")
-    if not filename or not content_base64:
-        raise HTTPException(status_code=400, detail="Missing filename or content_base64")
+    content = params.get("content")
+    if not filename or not content:
+        raise HTTPException(status_code=400, detail="Missing filename or content")
     try:
-        content_bytes = base64.b64decode(content_base64)
-        return await save_and_validate_template_file(manager.models_dir, filename, content_bytes)
+        return await save_and_validate_template_file(manager.models_dir, filename, content)
     except Exception as e:
         logger.exception("rpc_upload_model failed")
         raise HTTPException(status_code=500, detail=f"Failed to upload model: {str(e)}")
 
 async def rpc_upload_control(params: Dict[str, Any]):
     filename = params.get("filename")
-    content_base64 = params.get("content_base64")
-    if not filename or not content_base64:
-        raise HTTPException(status_code=400, detail="Missing filename or content_base64")
+    content = params.get("content")
+    if not filename or not content:
+        raise HTTPException(status_code=400, detail="Missing filename or content")
     try:
-        content_bytes = base64.b64decode(content_base64)
-        return await save_and_validate_template_file(manager.controls_dir, filename, content_bytes)
+        return await save_and_validate_template_file(manager.controls_dir, filename, content)
     except Exception as e:
         logger.exception("rpc_upload_control failed")
         raise HTTPException(status_code=500, detail=f"Failed to upload control: {str(e)}")
