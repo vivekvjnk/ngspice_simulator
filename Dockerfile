@@ -24,4 +24,4 @@ COPY . .
 EXPOSE 53328
 
 # Command to run the application using uvicorn
-CMD ["uvicorn", "ngspice_simulator_package.mcp_server:app", "--host", "0.0.0.0", "--port", "53328"]
+CMD ["uvicorn", "virtual_hardware_lab.mcp_server:app", "--host", "0.0.0.0", "--port", "53328"]
