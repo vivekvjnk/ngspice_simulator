@@ -1,7 +1,7 @@
 
-# ngspice_simulator
+# Virtual Hardware Lab
 
-This project provides a Python package for managing and running ngspice simulations. It leverages FastAPI for building a web interface or API, Jinja2 for templating (if a web interface is present), Matplotlib and NumPy for data processing and visualization, Pydantic for data validation, Uvicorn as an ASGI server, and PyYAML for configuration.
+This project provides a Virtual Hardware Lab (VHL) for managing and running ngspice simulations. It leverages FastAPI for building a web interface or API, Jinja2 for templating, Matplotlib and NumPy for data processing and visualization, Pydantic for data validation, Uvicorn as an ASGI server, and PyYAML for configuration.
 
 ## Features
 
@@ -13,11 +13,11 @@ This project provides a Python package for managing and running ngspice simulati
 
 ## Installation
 
-To install the `ngspice_simulator` package, first clone the repository:
+To install the `virtual_hardware_lab`, first clone the repository:
 
 ```bash
-git clone https://github.com/vivekvjnk/ngspice_simulator.git
-cd ngspice_simulator
+git clone https://github.com/vivekvjnk/virtual_hardware_laboratary.git
+cd virtual_hardware_laboratary
 ```
 
 Then, install the required dependencies:
@@ -26,52 +26,64 @@ Then, install the required dependencies:
 pip install -r requirements.txt
 ```
 
-Finally, install the package:
-
-```bash
-pip install .
-```
-
 ## Usage
 
-### Running the MCP Server
-To start the MCP server, navigate to the project's root directory and run:
+### Running the VHL Server
+To start the VHL server, navigate to the project's root directory and run:
 
 ```bash
-uvicorn ngspice_simulator_package.mcp_server:app --host 0.0.0.0 --port 55273
+python -m virtual_hardware_lab.main
 ```
 
-The server will be accessible at `http://localhost:55273`.
+The server will be accessible at `http://0.0.0.0:53328` (or the port specified in the `MCP_SERVER_PORT` environment variable).
 
-### Uploading Model and Control Files
-You can upload your own ngspice model (`.j2`) and control (`.j2`) template files using the dedicated API endpoints.
+### Interacting with the JSON-RPC API
+The VHL exposes a JSON-RPC 2.0 API for all its functionalities. You can interact with it using `curl` or any HTTP client.
 
-**Upload a Model File:**
+**Example: Listing Available Tools**
 ```bash
-curl -X POST -F "file=@/path/to/your/model.j2" http://localhost:55273/upload_model
+curl -X POST http://localhost:53328/jsonrpc \
+     -H "Content-Type: application/json" \
+     -d '{
+           "jsonrpc": "2.0",
+           "method": "tools/list",
+           "id": 1
+         }'
 ```
 
-**Upload a Control File:**
+**Example: Uploading a Model File**
+You would typically encode the file content in base64.
 ```bash
-curl -X POST -F "file=@/path/to/your/control.j2" http://localhost:55273/upload_control
+curl -X POST http://localhost:53328/jsonrpc \
+     -H "Content-Type: application/json" \
+     -d '{
+           "jsonrpc": "2.0",
+           "method": "upload_model",
+           "params": {
+             "filename": "my_model.j2",
+             "content_base64": "base64_encoded_content_here"
+           },
+           "id": 2
+         }'
 ```
-Replace `/path/to/your/model.j2` and `/path/to/your/control.j2` with the actual paths to your files.
-
-### Listing Available Models and Controls
-(Further usage instructions will be added here once the project's specific functionalities are detailed.)
 
 ## Project Structure
 
-*   `controls/`: Likely contains control scripts or configuration files for simulations.
+*   `virtual_hardware_lab/`: The core Python package containing:
+    *   `mcp_server_api/`: Contains files related to the MCP server API.
+        *   `mcp_server.py`: FastAPI application setup and JSON-RPC endpoint.
+        *   `schemas.py`: Pydantic models for data validation.
+        *   `utils.py`: Helper functions.
+        *   `rpc_methods.py`: Implementation of JSON-RPC methods.
+        *   `tool_definitions.py`: Definitions for available tools.
+    *   `simulation_core/`: Contains files related to the core simulation logic.
+        *   `simulation_manager.py`: Manages the ngspice simulation process.
+    *   `main.py`: The entry point for running the VHL server.
+*   `controls/`: Contains control scripts or configuration files for simulations.
 *   `docs/`: Documentation files for the project.
-*   `models/`: Could contain Pydantic models for data structures used in the simulations or API.
-*   `ngspice_simulator_package/`: The core Python package containing:
-    *   `__init__.py`: Initializes the package.
-    *   `mcp_server.py`: Potentially a multi-client process server or a server-related component.
-    *   `simulation_manager.py`: Manages the ngspice simulation process.
+*   `models/`: Contains model templates for simulations.
 *   `runs/`: Directory for storing simulation run outputs or results.
 *   `requirements.txt`: Lists all Python dependencies.
-*   `setup.py`: Setup script for the Python package.
 
 ## Dependencies
 
@@ -87,9 +99,9 @@ The project relies on the following Python libraries:
 
 ## Contributing
 
-(Contribution guidelines will be added here.)
+Contributions are welcome! Please refer to the project's issue tracker for open tasks or submit pull requests with improvements.
 
 ## License
 
-This project is licensed under the MIT License - see the `LICENSE` file for details. (Note: A `LICENSE` file is not currently present in the repository, but it's good practice to include one.)
+This project is licensed under the MIT License. See the `LICENSE` file in the repository root for details.
 
