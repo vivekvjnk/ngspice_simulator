@@ -119,7 +119,11 @@ async def save_and_validate_template_file(directory: str, filename: str, content
     rendered_spice_code = template.render(template_params)
 
     # 3. Validate the rendered SPICE code using ngspice
-    await _validate_spice_code(rendered_spice_code)
+    try:
+        await _validate_spice_code(rendered_spice_code)
+    except HTTPException as e:
+        logger.error(f"SPICE validation failed for {filename}: {e.detail}")
+        return {"error": e.detail}
 
     # 4. If validation passes, save the original .j2 file
     os.makedirs(directory, exist_ok=True)

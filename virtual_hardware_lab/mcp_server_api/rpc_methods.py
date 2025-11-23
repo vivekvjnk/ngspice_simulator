@@ -109,7 +109,10 @@ async def rpc_upload_model(params: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="Missing filename or content")
     try:
         logger.info(f"Uploading model: {filename}\nContent:\n{content}")
-        return await save_and_validate_template_file(manager.models_dir, filename, content)
+        result = await save_and_validate_template_file(manager.models_dir, filename, content)
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+        return result
     except Exception as e:
         logger.exception("rpc_upload_model failed")
         raise HTTPException(status_code=500, detail=f"Failed to upload model: {str(e)}")
@@ -121,7 +124,10 @@ async def rpc_upload_control(params: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="Missing filename or content")
     try:
         logger.info(f"Uploading model: {filename}\nContent:\n{content}")
-        return await save_and_validate_template_file(manager.controls_dir, filename, content)
+        result = await save_and_validate_template_file(manager.controls_dir, filename, content)
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+        return result
     except Exception as e:
         logger.exception("rpc_upload_control failed")
         raise HTTPException(status_code=500, detail=f"Failed to upload control: {str(e)}")
