@@ -1,8 +1,13 @@
 
 import os
 import asyncio
+import tempfile
+import subprocess
+import jinja2
+import yaml
 from typing import Any
 from fastapi import HTTPException
+from virtual_hardware_lab.simulation_core.simulation_manager import SimulationManager # Needed for metadata parsing and ngspice path
 
 def jsonrpc_success(result: Any, id_val: Any):
     return {"jsonrpc": "2.0", "result": result, "id": id_val}
@@ -12,6 +17,68 @@ def jsonrpc_error(code: int, message: str, id_val: Any = None, data: Any = None)
     if data is not None:
         err["data"] = data
     return {"jsonrpc": "2.0", "error": err, "id": id_val}
+
+
+def _parse_metadata_from_content(content_bytes: bytes):
+    """
+    Parses YAML metadata from the top of a .j2 file's content.
+    Metadata is expected to be between `* ---` and `* ---` lines.
+    Returns a tuple of (metadata_dict, content_without_metadata_bytes).
+    If no metadata is found, returns ({}, original_content_bytes).
+    """
+    content = content_bytes.decode('utf-8')
+    metadata_start_tag = '* ---\n'
+    metadata_end_tag = '* ---\n'
+
+    start_index = content.find(metadata_start_tag)
+    end_index = content.find(metadata_end_tag, start_index + len(metadata_start_tag))
+
+    if start_index == -1 or end_index == -1:
+        return {}, content_bytes # No metadata found
+
+    metadata_block = content[start_index + len(metadata_start_tag):end_index].strip()
+
+    # Remove the leading '* ' from each line in the metadata block
+    cleaned_metadata_block = '\n'.join([line[2:] if line.startswith('* ') else line for line in metadata_block.splitlines()])
+
+    try:
+        metadata = yaml.safe_load(cleaned_metadata_block)
+    except yaml.YAMLError as e:
+        print(f"Error parsing YAML metadata from content: {e}")
+        metadata = {}
+    
+    # Content after the metadata block
+    content_without_metadata = content[end_index + len(metadata_end_tag):].strip()
+    return metadata, content_without_metadata.encode('utf-8')
+
+async def _validate_spice_code(spice_code: str):
+    """
+    Validates SPICE code using ngspice in batch mode.
+    Raises HTTPException if ngspice reports errors.
+    """
+    print(f"--- SPICE Code being validated by ngspice ---\n{spice_code}\n---------------------------------------------") # Add this line
+    if not spice_code.strip():
+        raise HTTPException(status_code=400, detail="SPICE code is empty.")
+
+    with tempfile.NamedTemporaryFile(mode='w+', suffix='.cir', delete=False) as temp_file:
+        temp_file.write(spice_code)
+        temp_file_path = temp_file.name
+    try:
+        command = ["ngspice", "-b", temp_file_path]
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+
+        if process.returncode != 0:
+            error_message = f"ngspice validation failed with exit code {process.returncode}.\n"
+            error_message += f"ngspice stdout:\n{stdout.decode('utf-8')}\n"
+            error_message += f"ngspice stderr:\n{stderr.decode('utf-8')}"
+            raise HTTPException(status_code=400, detail=f"SPICE code validation failed: {error_message}")
+    finally:
+        os.remove(temp_file_path)
 
 def safe_join(base_dir: str, *paths: str) -> str:
     candidate = os.path.abspath(os.path.join(base_dir, *paths))
@@ -23,13 +90,41 @@ def safe_join(base_dir: str, *paths: str) -> str:
 async def save_and_validate_template_file(directory: str, filename: str, content_bytes: bytes):
     if not filename.endswith(".j2"):
         raise HTTPException(status_code=400, detail="Invalid file type. Only .j2 files are allowed.")
+
+    # 1. Parse metadata to get default parameters for rendering
+    metadata, template_content_bytes = _parse_metadata_from_content(content_bytes)
+    template_params = {}
+    if 'parameters' in metadata:
+        for param_name, param_info in metadata['parameters'].items():
+            if 'default' in param_info:
+                template_params[param_name] = param_info['default']
+            elif 'type' in param_info:
+                # Provide a dummy value based on type for validation if no default
+                if param_info['type'] == 'float':
+                    template_params[param_name] = 0.0
+                elif param_info['type'] == 'int':
+                    template_params[param_name] = 0
+                elif param_info['type'] == 'str':
+                    template_params[param_name] = "dummy_string"
+                elif param_info['type'] == 'bool':
+                    template_params[param_name] = False
+    
+    # 2. Render the template with dummy parameters for validation
+    env = jinja2.Environment(loader=jinja2.BaseLoader)
+    template = env.from_string(template_content_bytes.decode('utf-8'))
+    rendered_spice_code = template.render(template_params)
+
+    # 3. Validate the rendered SPICE code using ngspice
+    await _validate_spice_code(rendered_spice_code)
+
+    # 4. If validation passes, save the original .j2 file
     os.makedirs(directory, exist_ok=True)
     file_path = safe_join(directory, filename)
-    
+
     def write_file():
         with open(file_path, "wb") as f:
             f.write(content_bytes)
     await asyncio.to_thread(write_file)
-    
-    return {"filename": filename, "message": f"Successfully uploaded {filename} to {directory}"}
+
+    return {"filename": filename, "message": f"Successfully uploaded and validated {filename} to {directory}"}
 
