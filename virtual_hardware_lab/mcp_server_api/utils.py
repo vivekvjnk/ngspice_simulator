@@ -98,7 +98,7 @@ def safe_join(base_dir: str, *paths: str) -> str:
         raise ValueError("Invalid path (possible path traversal).")
     return candidate
 
-async def save_and_validate_template_file(directory: str, filename: str, content: str):
+async def save_and_validate_template_file(manager: SimulationManager, directory: str, filename: str, content: str):
     if not filename.endswith(".j2"):
         logger.warning(f"Filename {filename} does not end with .j2 extension. Changing extension to .j2.")
         filename = os.path.splitext(filename)[0] + ".j2"
@@ -127,8 +127,28 @@ async def save_and_validate_template_file(directory: str, filename: str, content
     template = env.from_string(template_content)
     rendered_spice_code = template.render(template_params)
 
+    # 2.1. Automatically include models/controls referenced by .subckt calls in the rendered code
+    # This is a basic approach and might need to be more sophisticated for complex cases.
+    # We are looking for subcircuit instantiations like "X1 node1 node2 subckt_name"
+    # Or, more simply, just looking for defined subcircuits.
+    # For initial validation, we assume all needed subcircuits from the inventory should be available.
+
+    # Combine all known models and controls for validation context
+    full_validation_context = ""
+    for tmpl_name, tmpl_content in manager._model_inventory.items():
+        if tmpl_name != filename: # Don't include self
+            _meta, _content = _parse_metadata_from_content(tmpl_content)
+            full_validation_context += _content + "\n"
+    for tmpl_name, tmpl_content in manager._control_inventory.items():
+        if tmpl_name != filename: # Don't include self
+            _meta, _content = _parse_metadata_from_content(tmpl_content)
+            full_validation_context += _content + "\n"
+
+    # Prepend the context to the rendered code for validation
+    final_spice_code_for_validation = full_validation_context + "\n" + rendered_spice_code
+
     # 3. Validate the rendered SPICE code using ngspice
-    validation_error = await _validate_spice_code(rendered_spice_code)
+    validation_error = await _validate_spice_code(final_spice_code_for_validation)
     if validation_error:
         logger.error(f"SPICE validation failed for {filename}: {validation_error}")
         return {"error": validation_error}

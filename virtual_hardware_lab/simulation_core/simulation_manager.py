@@ -45,8 +45,38 @@ class SimulationManager:
         self.models_dir = models_dir
         self.controls_dir = controls_dir
         self.runs_dir = runs_dir
+        # Jinja2 environment configured to load from both models and controls directories
         self.env = jinja2.Environment(loader=jinja2.FileSystemLoader([models_dir, controls_dir]))
         os.makedirs(self.runs_dir, exist_ok=True)
+
+        self._model_inventory = {}
+        self._control_inventory = {}
+        self._load_all_templates()
+
+    def _load_all_templates(self):
+        """Loads all .j2 template contents into memory for quick access and validation."""
+        self._model_inventory = self._load_templates_from_dir(self.models_dir)
+        self._control_inventory = self._load_templates_from_dir(self.controls_dir)
+
+    def _load_templates_from_dir(self, directory: str):
+        """Helper to load templates from a given directory."""
+        inventory = {}
+        if not os.path.exists(directory):
+            return inventory
+        for filename in os.listdir(directory):
+            if filename.endswith(".j2"):
+                file_path = os.path.join(directory, filename)
+                with open(file_path, 'r') as f:
+                    inventory[filename] = f.read()
+        return inventory
+
+    def get_template_content(self, template_name: str, template_type: str) -> Optional[str]:
+        """Retrieves the raw content of a model or control template."""
+        if template_type == "model":
+            return self._model_inventory.get(template_name)
+        elif template_type == "control":
+            return self._control_inventory.get(template_name)
+        return None
 
     def parse_metadata(self, file_path):
         """

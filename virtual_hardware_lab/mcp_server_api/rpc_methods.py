@@ -108,8 +108,10 @@ async def rpc_upload_model(params: Dict[str, Any]):
     if not filename or not content:
         return {"error": "Missing filename or content"}
     logger.info(f"Uploading model: {filename}\nContent:\n{content}")
-    result = await save_and_validate_template_file(manager.models_dir, filename, content)
+    result = await save_and_validate_template_file(manager, manager.models_dir, filename, content)
     print(f"DEBUG: Result from save_and_validate_template_file (model): {result}") # Debug print
+    if "error" not in result:
+        manager._load_all_templates() # Refresh inventory
     return result
 
 async def rpc_upload_control(params: Dict[str, Any]):
@@ -118,8 +120,10 @@ async def rpc_upload_control(params: Dict[str, Any]):
     if not filename or not content:
         return {"error": "Missing filename or content"}
     logger.info(f"Uploading model: {filename}\nContent:\n{content}")
-    result = await save_and_validate_template_file(manager.controls_dir, filename, content)
+    result = await save_and_validate_template_file(manager, manager.controls_dir, filename, content)
     print(f"DEBUG: Result from save_and_validate_template_file (control): {result}") # Debug print
+    if "error" not in result:
+        manager._load_all_templates() # Refresh inventory
     return result
 
 def rpc_get_artifact_link(params: Dict[str, Any]):
