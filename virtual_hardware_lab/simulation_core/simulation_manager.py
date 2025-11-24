@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import cmath
 import datetime
 import yaml # Import yaml for metadata parsing
+from typing import Optional
 
 class SimulationManager:
     """
