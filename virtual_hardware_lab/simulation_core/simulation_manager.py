@@ -61,172 +61,10 @@ class SimulationManager:
 
     def _load_all_templates(self):
         """Loads all .j2 template contents into memory for quick access and validation."""
-        self._model_inventory = self._load_templates_from_dir(self.models_dir, "model")
-        self._control_inventory = self._load_templates_from_dir(self.controls_dir, "control")
+        self._model_inventory = _load_templates_from_dir(self.models_dir, "model")
+        self._control_inventory = _load_templates_from_dir(self.controls_dir, "control")
 
-    def _load_templates_from_dir(self, directory: str, template_type: str):
-        """Helper to load templates from a given directory."""
-        inventory = {}
-        if not os.path.exists(directory):
-            return inventory
-        for filename in os.listdir(directory):
-            if filename.endswith(".j2"):
-                file_path = os.path.join(directory, filename)
-                with open(file_path, 'r') as f:
-                    content = f.read()
-                
-                if template_type == "model":
-                    metadata, template_content = self._parse_metadata_from_content(content)
-                    
-                    # Extract parameters and their defaults from metadata using the new helper
-                    parameters = self._get_default_params_for_rendering(metadata)
-
-                    # Extract subcircuits
-                    subcircuits = self._extract_subcircuits(template_content)
-
-                    # Extract includes
-                    includes = self._extract_includes(template_content)
-
-                    inventory[filename] = {
-                        "raw_string": content,
-                        "models": subcircuits,
-                        "parameters": parameters,
-                        "includes": includes, # Add includes to the inventory
-                        "metadata": metadata # Store full metadata for other uses
-                    }
-                else: # For control templates, keep raw string
-                    inventory[filename] = content
-        return inventory
-
-    def _extract_subcircuits(self, spice_code: str) -> list[str]:
-        """
-        Extracts subcircuit names from SPICE code.
-        Looks for lines starting with `.subckt` and extracts the subcircuit name.
-        """
-        subcircuits = []
-        for line in spice_code.splitlines():
-            line = line.strip()
-            if line.lower().startswith(".subckt"):
-                parts = line.split()
-                if len(parts) > 1:
-                    subcircuits.append(parts[1])
-        return subcircuits
-
-
-    def _extract_includes(self, spice_code: str) -> list[str]:
-        """
-        Extracts .include statements from SPICE code.
-        Looks for lines starting with `.include` and extracts the included filename.
-        """
-        includes = []
-        for line in spice_code.splitlines():
-            line = line.strip()
-            if line.lower().startswith(".include"):
-                parts = line.split()
-                if len(parts) > 1:
-                    # The include path might be quoted, remove quotes if present
-                    include_path = parts[1].strip('\'"')
-                    includes.append(include_path)
-        return includes
-
-
-
-
-    def _parse_metadata_from_content(self, content: str):
-        """
-        Parses YAML metadata from the top of a .j2 file's content.
-        Metadata is expected to be between `* ---` and `* ---` lines.
-        Returns a tuple of (metadata_dict, content_without_metadata).
-        If no metadata is found, returns ({}, original_content).
-        """
-
-
-    def _get_default_params_for_rendering(self, metadata: dict) -> dict:
-        """
-        Extracts parameters and their default/dummy values from metadata for rendering purposes.
-        If a parameter has an explicit 'default' in metadata, that is used.
-        Otherwise, a dummy value based on 'type' is provided if 'type' is present.
-        """
-        rendering_params = {}
-        if 'parameters' in metadata:
-            for param_name, param_info in metadata['parameters'].items():
-                if 'default' in param_info:
-                    rendering_params[param_name] = param_info['default']
-                elif 'type' in param_info:
-                    # Provide a dummy value based on type for validation if no default
-                    if param_info['type'] == 'float':
-                        rendering_params[param_name] = 0.0
-                    elif param_info['type'] == 'int':
-                        rendering_params[param_name] = 0
-                    elif param_info['type'] == 'str':
-                        rendering_params[param_name] = "dummy_string"
-                    elif param_info['type'] == 'bool':
-                        rendering_params[param_name] = False
-        return rendering_params
-
-
-
-        metadata_start_tag = '* ---\n'
-        metadata_end_tag = '* ---\n'
-
-        start_index = content.find(metadata_start_tag)
-        end_index = content.find(metadata_end_tag, start_index + len(metadata_start_tag))
-
-        if start_index == -1 or end_index == -1:
-            return {}, content # No metadata found
-
-        metadata_block = content[start_index + len(metadata_start_tag):end_index].strip()
-
-        # Remove the leading '* ' from each line in the metadata block
-        cleaned_metadata_block = '\n'.join([line[2:] if line.startswith('* ') else line for line in metadata_block.splitlines()])
-
-        try:
-            metadata = yaml.safe_load(cleaned_metadata_block)
-        except yaml.YAMLError as e:
-            print(f"Error parsing YAML metadata from content: {e}")
-            metadata = {}
-        
-        # Content after the metadata block
-        content_without_metadata = content[end_index + len(metadata_end_tag):].strip()
-        return metadata, content_without_metadata
-
-
-    async def _validate_spice_code(self, spice_code: str) -> Optional[str]:
-        """
-        Validates SPICE code using ngspice in batch mode.
-        Returns an error message string if ngspice reports errors, otherwise returns None.
-        """
-        print(f"--- SPICE Code being validated by ngspice ---\n{spice_code}\n---------------------------------------------")
-        if not spice_code.strip():
-            return "SPICE code is empty."
-
-        with tempfile.NamedTemporaryFile(mode='w+', suffix='.cir', delete=False) as temp_file:
-            temp_file.write(spice_code)
-            temp_file_path = temp_file.name
-        try:
-            command = ["ngspice", "-b", temp_file_path]
-            process = await asyncio.create_subprocess_exec(
-                *command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            stdout, stderr = await process.communicate()
-
-            stdout_str = stdout.decode('utf-8')
-            stderr_str = stderr.decode('utf-8')
-            full_output = f"ngspice stdout:\n{stdout_str}\nngspice stderr:\n{stderr_str}"
-
-            if process.returncode != 0:
-                if "error:" in stdout_str.lower() or "error:" in stderr_str.lower():
-                    error_message = f"ngspice validation failed with exit code {process.returncode}.\n"
-                    error_message += full_output
-                    return f"SPICE code validation failed: {error_message}"
-                else:
-                    logger.warning(f"ngspice finished with non-zero exit code {process.returncode}, but no explicit errors found. Output:\n{full_output}")
-                    return None # It's a warning, not a critical error
-            return None # Success
-        finally:
-            os.remove(temp_file_path)
+    
 
     async def save_and_validate_template_file(self, directory: str, filename: str, content: str):
         if not filename.endswith(".j2"):
@@ -235,8 +73,8 @@ class SimulationManager:
             
 
         # 1. Parse metadata to get default parameters for rendering
-        metadata, template_content = self._parse_metadata_from_content(content)
-        template_params = self._get_default_params_for_rendering(metadata)
+        metadata, template_content = _parse_metadata_from_content(content)
+        template_params = _get_default_params_for_rendering(metadata)
         
         # 2. Render the template with dummy parameters for validation
         env = jinja2.Environment(loader=jinja2.BaseLoader)
@@ -253,18 +91,18 @@ class SimulationManager:
         full_validation_context = ""
         for tmpl_name, tmpl_info in self._model_inventory.items():
             if tmpl_name != filename: # Don't include self
-                _meta, _content = self._parse_metadata_from_content(tmpl_info["raw_string"])
+                _meta, _content = _parse_metadata_from_content(tmpl_info["raw_string"])
                 full_validation_context += _content + "\n"
         for tmpl_name, tmpl_content in self._control_inventory.items():
             if tmpl_name != filename: # Don't include self
-                _meta, _content = self._parse_metadata_from_content(tmpl_info["raw_string"])
+                _meta, _content = _parse_metadata_from_content(tmpl_content)
                 full_validation_context += _content + "\n"
 
         # Prepend the context to the rendered code for validation
         final_spice_code_for_validation = full_validation_context + "\n" + rendered_spice_code
 
         # 3. Validate the rendered SPICE code using ngspice
-        validation_error = await self._validate_spice_code(final_spice_code_for_validation)
+        validation_error = await _validate_spice_code(final_spice_code_for_validation)
         if validation_error:
             logger.error(f"SPICE validation failed for {filename}: {validation_error}")
             return {"error": validation_error}
@@ -280,10 +118,6 @@ class SimulationManager:
 
         return {"filename": filename, "message": f"Successfully uploaded and validated {filename} to {directory}"}
 
-
-
-
-
     def get_template_content(self, template_name: str, template_type: str) -> Optional[str]:
         """Retrieves the raw content of a model or control template."""
         if template_type == "model":
@@ -292,6 +126,7 @@ class SimulationManager:
         elif template_type == "control":
             return self._control_inventory.get(template_name)
         return None
+
     def list_models(self):
         """Lists available model templates with their metadata."""
         models = []
@@ -332,33 +167,21 @@ class SimulationManager:
         else:
             return None
 
-    def _render_template(self, template_path, params, raw_content: Optional[str] = None):
-        if raw_content:
-            template = jinja2.Environment(loader=jinja2.BaseLoader).from_string(raw_content)
-        else:
-            template = self.env.get_template(template_path)
-        # Sort parameters to ensure deterministic rendering
-        sorted_params = {k: params[k] for k in sorted(params)}
-        return template.render(sorted_params)
-
-    def _compute_sha256(self, content):
-        return hashlib.sha256(content.encode('utf-8')).hexdigest()
-
     def start_sim(self, model_name, model_params, control_name, control_params, sim_id=None):
         if sim_id is None:
-            sim_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S") + "_" + hashlib.sha256(str(model_params).encode() + str(control_params).encode()).hexdigest()[:8]
+            sim_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S") + "_" + _compute_sha256(str(model_params) + str(control_params))[:8]
         
         run_dir = os.path.join(self.runs_dir, sim_id)
         os.makedirs(run_dir, exist_ok=True)
 
         # 1. Render Model and Control Templates
         model_raw_content = self._model_inventory[model_name]["raw_string"]
-        model_content = self._render_template(model_name, model_params, raw_content=model_raw_content)
-        control_content = self._render_template(control_name, control_params)
+        model_content = _render_template(self.env, model_name, model_params, raw_content=model_raw_content)
+        control_content = _render_template(self.env, control_name, control_params)
 
         # 2. Compute SHAs for fragments
-        model_sha = self._compute_sha256(model_content)
-        control_sha = self._compute_sha256(control_content)
+        model_sha = _compute_sha256(model_content)
+        control_sha = _compute_sha256(control_content)
 
         # 3. Merge Netlist
         merged_content = f"{model_content}\n\n* --- control ---\n{control_content}"
@@ -517,4 +340,171 @@ class SimulationManager:
             print(f"Error: {eis_data_filepath} not found.")
         except Exception as e:
             print(f"Error generating Nyquist plot from {eis_data_filepath}: {e}")
+
+def _load_templates_from_dir(directory: str, template_type: str):
+        """Helper to load templates from a given directory."""
+        inventory = {}
+        if not os.path.exists(directory):
+            return inventory
+        for filename in os.listdir(directory):
+            if filename.endswith(".j2"):
+                file_path = os.path.join(directory, filename)
+                with open(file_path, 'r') as f:
+                    content = f.read()
+                
+                if template_type == "model":
+                    metadata, template_content = _parse_metadata_from_content(content)
+                    
+                    # Extract parameters and their defaults from metadata using the new helper
+                    parameters = _get_default_params_for_rendering(metadata)
+
+                    # Extract subcircuits
+                    subcircuits = _extract_subcircuits(template_content)
+
+                    # Extract includes
+                    includes = _extract_includes(template_content)
+
+                    inventory[filename] = {
+                        "raw_string": content,
+                        "models": subcircuits,
+                        "parameters": parameters,
+                        "includes": includes, # Add includes to the inventory
+                        "metadata": metadata # Store full metadata for other uses
+                    }
+                else: # For control templates, keep raw string
+                    inventory[filename] = content
+        return inventory
+
+def _get_default_params_for_rendering(metadata: dict) -> dict:
+    """
+    Extracts parameters and their default/dummy values from metadata for rendering purposes.
+    If a parameter has an explicit 'default' in metadata, that is used.
+    Otherwise, a dummy value based on 'type' is provided if 'type' is present.
+    """
+    rendering_params = {}
+    if 'parameters' in metadata:
+        for param_name, param_info in metadata['parameters'].items():
+            if 'default' in param_info:
+                rendering_params[param_name] = param_info['default']
+            elif 'type' in param_info:
+                # Provide a dummy value based on type for validation if no default
+                if param_info['type'] == 'float':
+                    rendering_params[param_name] = 0.0
+                elif param_info['type'] == 'int':
+                    rendering_params[param_name] = 0
+                elif param_info['type'] == 'str':
+                    rendering_params[param_name] = "dummy_string"
+                elif param_info['type'] == 'bool':
+                    rendering_params[param_name] = False
+    return rendering_params
+
+def _extract_subcircuits(spice_code: str) -> list[str]:
+    """
+    Extracts subcircuit names from SPICE code.
+    Looks for lines starting with `.subckt` and extracts the subcircuit name.
+    """
+    subcircuits = []
+    for line in spice_code.splitlines():
+        line = line.strip()
+        if line.lower().startswith(".subckt"):
+            parts = line.split()
+            if len(parts) > 1:
+                subcircuits.append(parts[1])
+    return subcircuits
+
+def _extract_includes(spice_code: str) -> list[str]:
+    """
+    Extracts .include statements from SPICE code.
+    Looks for lines starting with `.include` and extracts the included filename.
+    """
+    includes = []
+    for line in spice_code.splitlines():
+        line = line.strip()
+        if line.lower().startswith(".include"):
+            parts = line.split()
+            if len(parts) > 1:
+                # The include path might be quoted, remove quotes if present
+                include_path = parts[1].strip('\'"')
+                includes.append(include_path)
+    return includes
+
+def _parse_metadata_from_content(content: str):
+    """
+    Parses YAML metadata from the top of a .j2 file's content.
+    Metadata is expected to be between `* ---` and `* ---` lines.
+    Returns a tuple of (metadata_dict, content_without_metadata).
+    If no metadata is found, returns ({}, original_content).
+    """
+    metadata_start_tag = '* ---\n'
+    metadata_end_tag = '* ---\n'
+
+    start_index = content.find(metadata_start_tag)
+    end_index = content.find(metadata_end_tag, start_index + len(metadata_start_tag))
+
+    if start_index == -1 or end_index == -1:
+        return {}, content # No metadata found
+
+    metadata_block = content[start_index + len(metadata_start_tag):end_index].strip()
+
+    # Remove the leading '* ' from each line in the metadata block
+    cleaned_metadata_block = '\n'.join([line[2:] if line.startswith('* ') else line for line in metadata_block.splitlines()])
+
+    try:
+        metadata = yaml.safe_load(cleaned_metadata_block)
+    except yaml.YAMLError as e:
+        print(f"Error parsing YAML metadata from content: {e}")
+        metadata = {}
+    
+    # Content after the metadata block
+    content_without_metadata = content[end_index + len(metadata_end_tag):].strip()
+    return metadata, content_without_metadata
+
+async def _validate_spice_code(spice_code: str) -> Optional[str]:
+    """
+    Validates SPICE code using ngspice in batch mode.
+    Returns an error message string if ngspice reports errors, otherwise returns None.
+    """
+    print(f"--- SPICE Code being validated by ngspice ---\n{spice_code}\n---------------------------------------------")
+    if not spice_code.strip():
+        return "SPICE code is empty."
+
+    with tempfile.NamedTemporaryFile(mode='w+', suffix='.cir', delete=False) as temp_file:
+        temp_file.write(spice_code)
+        temp_file_path = temp_file.name
+    try:
+        command = ["ngspice", "-b", temp_file_path]
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+
+        stdout_str = stdout.decode('utf-8')
+        stderr_str = stderr.decode('utf-8')
+        full_output = f"ngspice stdout:\n{stdout_str}\nngspice stderr:\n{stderr_str}"
+
+        if process.returncode != 0:
+            if "error:" in stdout_str.lower() or "error:" in stderr_str.lower():
+                error_message = f"ngspice validation failed with exit code {process.returncode}.\n"
+                error_message += full_output
+                return f"SPICE code validation failed: {error_message}"
+            else:
+                logger.warning(f"ngspice finished with non-zero exit code {process.returncode}, but no explicit errors found. Output:\n{full_output}")
+                return None # It's a warning, not a critical error
+        return None # Success
+    finally:
+        os.remove(temp_file_path)
+
+def _render_template(env: jinja2.Environment, template_path, params, raw_content: Optional[str] = None):
+    if raw_content:
+        template = jinja2.Environment(loader=jinja2.BaseLoader).from_string(raw_content)
+    else:
+        template = env.get_template(template_path)
+    # Sort parameters to ensure deterministic rendering
+    sorted_params = {k: params[k] for k in sorted(params)}
+    return template.render(sorted_params)
+
+def _compute_sha256(content):
+    return hashlib.sha256(content.encode('utf-8')).hexdigest()
 
