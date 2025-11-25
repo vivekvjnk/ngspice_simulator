@@ -78,11 +78,8 @@ class SimulationManager:
                 if template_type == "model":
                     metadata, template_content = self._parse_metadata_from_content(content)
                     
-                    # Extract parameters and their defaults from metadata
-                    parameters = {}
-                    if 'parameters' in metadata:
-                        for param_name, param_info in metadata['parameters'].items():
-                            parameters[param_name] = param_info.get('default')
+                    # Extract parameters and their defaults from metadata using the new helper
+                    parameters = self._get_default_params_for_rendering(metadata)
 
                     # Extract subcircuits
                     subcircuits = self._extract_subcircuits(template_content)
@@ -142,6 +139,33 @@ class SimulationManager:
         Returns a tuple of (metadata_dict, content_without_metadata).
         If no metadata is found, returns ({}, original_content).
         """
+
+
+    def _get_default_params_for_rendering(self, metadata: dict) -> dict:
+        """
+        Extracts parameters and their default/dummy values from metadata for rendering purposes.
+        If a parameter has an explicit 'default' in metadata, that is used.
+        Otherwise, a dummy value based on 'type' is provided if 'type' is present.
+        """
+        rendering_params = {}
+        if 'parameters' in metadata:
+            for param_name, param_info in metadata['parameters'].items():
+                if 'default' in param_info:
+                    rendering_params[param_name] = param_info['default']
+                elif 'type' in param_info:
+                    # Provide a dummy value based on type for validation if no default
+                    if param_info['type'] == 'float':
+                        rendering_params[param_name] = 0.0
+                    elif param_info['type'] == 'int':
+                        rendering_params[param_name] = 0
+                    elif param_info['type'] == 'str':
+                        rendering_params[param_name] = "dummy_string"
+                    elif param_info['type'] == 'bool':
+                        rendering_params[param_name] = False
+        return rendering_params
+
+
+
         metadata_start_tag = '* ---\n'
         metadata_end_tag = '* ---\n'
 
@@ -212,21 +236,7 @@ class SimulationManager:
 
         # 1. Parse metadata to get default parameters for rendering
         metadata, template_content = self._parse_metadata_from_content(content)
-        template_params = {}
-        if 'parameters' in metadata:
-            for param_name, param_info in metadata['parameters'].items():
-                if 'default' in param_info:
-                    template_params[param_name] = param_info['default']
-                elif 'type' in param_info:
-                    # Provide a dummy value based on type for validation if no default
-                    if param_info['type'] == 'float':
-                        template_params[param_name] = 0.0
-                    elif param_info['type'] == 'int':
-                        template_params[param_name] = 0
-                    elif param_info['type'] == 'str':
-                        template_params[param_name] = "dummy_string"
-                    elif param_info['type'] == 'bool':
-                        template_params[param_name] = False
+        template_params = self._get_default_params_for_rendering(metadata)
         
         # 2. Render the template with dummy parameters for validation
         env = jinja2.Environment(loader=jinja2.BaseLoader)
