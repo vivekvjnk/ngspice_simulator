@@ -78,7 +78,7 @@ def rpc_get_documentation(params: Dict[str, Any]):
         logger.exception("Failed to read documentation")
         return {"error": f"Error retrieving documentation: {str(e)}"}
 
-def rpc_run_experiment(params: Dict[str, Any]):
+async def rpc_run_experiment(params: Dict[str, Any]):
     if isinstance(params, list):
         try:
             params_obj = {
@@ -94,13 +94,14 @@ def rpc_run_experiment(params: Dict[str, Any]):
         params_obj = params or {}
 
     req = RunExperimentRequest.model_validate(params_obj)
-    return manager.start_sim(
+    sim_id = await manager.start_sim(
         model_name=req.model_name,
         model_params=req.model_params,
         control_name=req.control_name,
         control_params=req.control_params,
         sim_id=req.sim_id,
     )
+    return sim_id
 
 async def rpc_upload_model(params: Dict[str, Any]):
     filename = params.get("filename")
@@ -108,11 +109,11 @@ async def rpc_upload_model(params: Dict[str, Any]):
     if not filename or not content:
         return {"error": "Missing filename or content"}
     logger.info(f"Uploading model: {filename}\nContent:\n{content}")
-    result = await manager.save_and_validate_template_file(manager.models_dir, filename, content)
-    print(f"DEBUG: Result from save_and_validate_template_file (model): {result}") # Debug print
-    if "error" not in result:
+    validation_result = await manager.save_and_validate_template_file(manager.models_dir, filename, content)
+    print(f"DEBUG: Result from save_and_validate_template_file (model): {validation_result}") # Debug print
+    if "error" not in validation_result:
         manager._load_all_templates() # Refresh inventory
-    return result
+    return validation_result
 
 async def rpc_upload_control(params: Dict[str, Any]):
     filename = params.get("filename")
@@ -120,11 +121,12 @@ async def rpc_upload_control(params: Dict[str, Any]):
     if not filename or not content:
         return {"error": "Missing filename or content"}
     logger.info(f"Uploading model: {filename}\nContent:\n{content}")
-    result = await manager.save_and_validate_template_file(manager.controls_dir, filename, content)
-    print(f"DEBUG: Result from save_and_validate_template_file (control): {result}") # Debug print
-    if "error" not in result:
+
+    validation_result = await manager.save_and_validate_template_file(manager.controls_dir, filename, content)
+    print(f"DEBUG: Result from save_and_validate_template_file (control): {validation_result}") # Debug print
+    if "error" not in validation_result:
         manager._load_all_templates() # Refresh inventory
-    return result
+    return validation_result
 
 def rpc_get_artifact_link(params: Dict[str, Any]):
     sim_id = params.get("sim_id")
@@ -288,6 +290,12 @@ async def dispatch_jsonrpc(payload: dict):
 
         return 200, jsonrpc_success(result, id_val)
     
+    except HTTPException as http_exc:
+        return http_exc.status_code, jsonrpc_error(
+            -32000 - http_exc.status_code, 
+            http_exc.detail, 
+            id_val
+        )
     except ValidationError as e:
         return 400, jsonrpc_error(-32602, "Invalid params", id_val, data=e.errors())
     except Exception as e:

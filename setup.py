@@ -16,8 +16,8 @@ setup(
         'uvicorn',
         'PyYAML',
     ],
-    author='Your Name',
-    author_email='your.email@example.com',
+    author='Prophet System Team',
+    author_email='vivekv@pst.com',
     description='A Virtual Hardware Lab package for deterministic and reproducible ngspice simulations.',
     url='https://github.com/vivekvjnk/virtual_hardware_lab',
     classifiers=[
