@@ -500,3 +500,75 @@ The Simulation Tool:
 
 Agents must operate entirely through official tool functions, respecting metadata, constraints, and validation rules.
 
+
+# Image to Schematic conversion pipeline
+
+## Review agent result analysis
+Implemented and tested basic review agent workflow
+
+First impressions:
+
+1. Review agent is not capturing wrong mappings as expected. 
+
+	- Tried with Gemini-2.5-flash and Gemini-3.0-pro. 
+
+	- Flash model failed to identify the missing node connections for BAT. It could resolve issues related to R121. But differential changes are minimal. 
+
+	- Gemini-3.0-pro failed to respond properly for the above example image.
+
+02_s27 : This sub-circuit belongs to the BQ79616 ic. There are few mistakes(ones mentioned above) in the extracted SPICE code for this module. Yet review agent failed to identify those mistakes, rather Gemini-3-pro response was not proper. 
+
+01_s39 : Minor updates after review agent. No breaking errors detected
+
+03_s40 : Schematic contain confusing mistake. Resolved the error originated from this mistake. Not major.
+
+04_s39 : Review agent removed all the pin numbering. Undesirable outcome. Happened because review agent is unaware of pin conventions
+
+05_s30 : Review agent resolved one major mistake in the SPICE code. R119 resistor connections were wrong. Agent corrected this. But agent modified pin names of ISO07342 ic without any strong reason
+
+* ** Identified one key missing instruction as part of the Schematic extraction prompt. Right now, we don't specify how node names has to be defined. Since the schematic focuses on system level view, we should consider net names which are present in the schematic nets as the first class persons. Pin names as part of IC definition should be considered as the last resort. If no net name is available for a node, then only use IC pin names as node names
+
+
+Based on the above results, we decided to move further without a Review agent at this stage. Most of the issues related to the SPICE extraction may get resolved as we could start using Gemini-3-flash(once it releases). Spending extra time and resources for a review agent at this stage doesn't seem to give much differential gain. Hence proceeding without review agent. Code will be archived for later use, if we encounter a strong use case for the review agent.
+
+## Combine multiple sub circuits to a combined schematic
+- Function 4:
+   - Inputs: All the sub circuit SPICE codes, sub circuit images and main schematic image.
+   - Task: Incrementally construct SPICE equivalent code for the main schematic image. Agent should read SPICE models of each one of the sub-circuits. Images of sub circuits and main schematic are also available to the agent. While constructing the SPICE equivalent code for the main circuit, if agent encounter any confusions/ambiguities, consult the circuit images and subcircuit SPICE codes for clarification. Sub-circuit SPICE codes can be considered as the high level block abstraction of the overall circuit. Each sub circuit is a modular circuit section extracted from the overall circuit using an image segmentation model. Agent should make sure, it doesn't make any mistakes during SPICE code generation. This can be achieved by incremental code construction and ambiguity resolution through multiple input analysis steps. 
+   - Output: SPICE equivalent code for the given Schematic image. Any other necessary information should be attached as comments in the SPICE code.
+   
+## SPICE to KiCAD schematic
+- We use "Circuitron" project to convert the SPICE code into KiCAD schematic. 
+- Circuitron is an LLM agentic framework.
+
+
+# Challenges identified so far in VHL journey
+Started by designing a SPICE MCP simulation server. 
+1. While implementing SPICE simulator, faced challenges with flat SPICE file format. To resolve these issues, tried to separate control statements from the model definition statements. This lead to issues related to merging logic required for constructing simulation code. Now the agent is forced to use models from the model library and construct separate control script. First we tried importing entire model definition files into the merged file. Observed complexity explosion right after few experiments. Then decided to use import statements instead of merging model definition. Tried basic implementation, but failed.
+After this failure, reflected on the final objective of the experiment. Started VHL as part of BMS development. The circuits we are trying to simulate are BMS, related sub circuits and the Li-ion cell model. All the experiments were carried out focusing on EIS cell modelling. Electrochemical Impedence Spectrum(EIS) modelling require impedence measurements at wide veriety of frequencies to accurately build the battery model. First experiments on VHL were focused on designing EIS simulation test benches. Once we saw the failure of experiments, started exploring feasibility of practical EIS data measurements. This lead us the major challenge in designing the EIS test set-up: 1. 10mV sine wave generator with frequency range 10 milli hertz to 100 mega hertz. The feedback mechanisms should be highly accurate to achieve this level of precision. With present technology, it is hard(or nearly impossible) to construct an embedded mechanism which can do EIS calibration in runtime. This lead us to questioning the ncessity of such high accuracy simulation. 
+Since progress felt stale in this direction, we decided to move on to the BMS design itself. 
+2. Identified major ICs for designing battery management system. Understood necessity of the major circuit components. Then started exploring methods to convert reference schematic image into KiCAD schematic. 
+   - Explored Netlistify : This tool converts schematic images into SPICE netlists
+      - Went through the Paper and Code base
+      - Cloned the code and ran it locally
+      - With example test data, model was working well and good
+      - Along with the image, there is one text file fed into the system. Couldn't understand what it is. Without spending more time on analysing it, we moved onto agentic parsing of netlist. 
+      - ie, we didn't validate netlistify on our local data
+      - Do we have local data? As of now, no.. We have the schematic image. But that is not converted to KiCAD schematic or SPICE code. 
+   - Experimented with Gemini on generating SPICE netlists by feeding schematic image.
+      - Gemini failed to generate SPICE for the entire schematic image
+      - If image is segmented into small sub circuit images, Gemini could generate SPICE code. 
+      - Hence we designed "Function 1" using SAMv3 image segmentation model.
+      - Through this approach, we could isolate sub circuits from our schematic image. The schematic image used was modular and well segmented into sub circuits, because of which we could easily validate the results.
+   - Then designed "Function 2" to extract SPICE code from each of the sub-circuit. 
+      - At this point, we started to see the next hurddle. We don't have ground truth to validate our results. 
+      - We don't have enough expertise with the SPICE code to analyse it. 
+      - Here we are, reflecting back, looking for alternatives, without knowing what to do next
+
+   - We moved further and developed prototypes for function 3 and 4. 
+      - Intent of function 3 was to review the SPICE code generated by function 2. Ground truth for the review was the source schematic image. It was observed that, the review agent did not add significant value gain to the pipeline. 
+      - Function 4 was supposed to integrate all the sub-circuit SPICE codes into a final SPICE code. 
+   
+   - At this point, we found the insufficiency of SPICE code as an intermediate circuit representation. SPICE code doesn't contain spacial information of the electrical circuit. Hence desiging schematic or pcb design from SPICE code is not feasible. 
+   - Then we took a step back and analysed the key challenges. Identified, we desparately need a unified intermediate representation for electronic circuit design. 
+   - This realisation lead us to tscircuit Circuit JSON. Circuit JSON was designed for this exact purpose. Single representation of electronic circuit from which SPICE, Schematic and PCB layout information can be derived.
