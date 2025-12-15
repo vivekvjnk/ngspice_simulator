@@ -572,3 +572,42 @@ Since progress felt stale in this direction, we decided to move on to the BMS de
    - At this point, we found the insufficiency of SPICE code as an intermediate circuit representation. SPICE code doesn't contain spacial information of the electrical circuit. Hence desiging schematic or pcb design from SPICE code is not feasible. 
    - Then we took a step back and analysed the key challenges. Identified, we desparately need a unified intermediate representation for electronic circuit design. 
    - This realisation lead us to tscircuit Circuit JSON. Circuit JSON was designed for this exact purpose. Single representation of electronic circuit from which SPICE, Schematic and PCB layout information can be derived.
+
+# Milestone 1 for VHL 
+* Create PCB schematic for BQ79616 using VHL
+* Inputs: 
+    - Reference design schematic in image format
+* Output:
+    - tscircuit equivalent of the reference schematic 
+
+* Key actors in the system:
+    - LLM Agent/s
+    - Execution environment: VHL
+    - Input provisioning and transformation subsystem (Optional)
+        - Segment input circuit images if necessary
+        - Configure top level input prompts
+        - Answer agent questions
+
+* Agent responsibilities 
+    - Understand the input schematic; Components and accurate connections.  : NO VHL Interaction
+    - Check if components are available in library                          : VHL Interaction (Search functionality)
+        - If not create component; validate; then save in the library       : VHL Interaction (Search functionality)
+    - Identify if any subcircuits/modules are required to simplify          : No VHL interaction
+    - Create all the circuits in .tsx format; validate                      : VHL Interaction (Upload .tsx files, Validate .tsx scripts, 
+                                                                                               Return validation resuls )
+* VHL Functionalities
+    - Derived from agent interactions with VHL
+    1. Search funcitonality
+        - If component is available in library
+        - Return minimum necessary information about the component
+    2. Upload and validate .tsx file to a specific location.
+        - Return validation resutls
+        - If agent want to modify the uploaded file, re-upload the entire file. Operation is immutable
+
+    3. Initialization of `tscircuit` project
+        - Create a `tscircuit` project 
+        - For the very first interaction with agent, respond with the project details(directory hierarchy and other relevant info.)
+        - Every operation should use relative path with respect to the project root
+
+* VHL implementation 
+    - MCP server 
