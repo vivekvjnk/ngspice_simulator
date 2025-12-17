@@ -1,5 +1,2 @@
-**__pycache__**
-*.pyc
-*.pyo
-*.pyd
-runs/
+dist/
+node_modules/

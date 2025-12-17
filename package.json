@@ -1,0 +1,33 @@
+{
+  "name": "virtual-hardware-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+
+  "description": "Virtual Hardware Laboratory (VHL) – TypeScript-based MCP server for tscircuit-driven hardware design",
+
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "jest",
+    "clean": "rm -rf dist"
+  },
+
+  "dependencies": {
+    "tscircuit": "^0.0.1056"
+  },
+
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/jest": "^29.5.11",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  },
+
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
