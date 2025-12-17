@@ -71,4 +71,31 @@ Since progress felt stale in this direction, we decided to move on to the BMS de
     - MCP server 
 
 
-## Library and Library manager
+# Library manager
+├── dist
+├── Dockerfile
+├── package.json
+├── pnpm-lock.yaml
+├── README.md
+├── src
+│   ├── config
+│   │   └── paths.ts                : All project paths live here(project root, library path etc)
+│   ├── index.ts                    : Process entry point, starts mcp server, load config
+│   ├── library
+│   │   ├── index.ts                : Public api for library, Exposes addComponent(), listLocal(), searchLibrary()
+│   │   ├── local                   : All local .tsx libraries are stored in this directory
+│   │   └── validator.ts            : Deterministic validation flow is implemented here
+│   ├── mcp
+│   │   ├── server.ts               : MCP server, tool registration, request dispatch
+│   │   └── tools
+│   │       ├── addComponent.ts     : MCP tool to add component
+│   │       ├── listLocal.ts        : MCP tool for listing all local components
+│   │       └── searchLibrary.ts    : MCP tool for searching components
+│   └── runtime
+│       ├── filesystem.ts           : Thin wrapper above filesystem
+│       └── tscircuit.ts            : TSX file execution happens here
+├── tests
+│   ├── mcp                         : MCP server test cases
+│   │   └── library.test.ts
+│   └── runtime.test.ts             : Runtime test cases
+└── tsconfig.json
