@@ -12,6 +12,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.1",
     "tscircuit": "^0.0.1056"
   },
   "devDependencies": {
