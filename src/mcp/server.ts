@@ -12,6 +12,9 @@ import { addComponent } from "./tools/addComponent.js";
 import { listLocalComponents } from "./tools/listLocal.js";
 import { searchLibrary } from "./tools/searchLibrary.js";
 
+import { StdioServerTransport } from
+  "@modelcontextprotocol/sdk/server/stdio.js";
+
 const server = new Server(
   {
     name: "vhl-library",
@@ -155,17 +158,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 export async function runServer() {
-  const transport =
-    process.stdin.isTTY
-      ? undefined
-      : new (await import(
-          "@modelcontextprotocol/sdk/server/stdio.js"
-        )).StdioServerTransport();
-
-  if (!transport) {
-    throw new Error("Failed to initialize MCP transport");
+  if (process.stdin.isTTY) {
+    throw new Error(
+      "MCP stdio server cannot run in TTY mode.\n" +
+      "Start this server from an MCP client or pipe stdin."
+    );
   }
 
+  const transport = new StdioServerTransport();
   await server.connect(transport);
 }
 
