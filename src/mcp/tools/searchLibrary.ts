@@ -37,19 +37,43 @@ async function searchGlobalLibrary(
       }
     );
 
-    const REGEX = /^\d+\.\s+(?<name>\S+)\s+-\s+Stars:\s+\d+(?:\s+-\s+(?<description>.*))?$/;
+    // Regex for registry items (with stars)
+    const REGISTRY_REGEX = /^\d+\.\s+(?<name>\S+)\s+-\s+Stars:\s+\d+(?:\s+-\s+(?<description>.*))?$/;
+    // Regex for KiCad items
+    const KICAD_REGEX = /^\s*\d+\.\s+(?<name>kicad:\S+)(?:\s+-\s+(?<description>.*))?$/;
+    // Regex for JLC items
+    const JLC_REGEX = /^\d+\.\s+(?<name>\S+)\s+\((?<jlc_id>C\d+)\)\s+-\s+(?<description>.*)\s+\(stock:\s+[\d,]+\)$/;
 
     const parsedItems = stdout
       .split("\n")
       .map((line) => line.trim())
       .filter((line) => line)
       .map((line) => {
-        const match = line.match(REGEX);
-        if (!match || !match.groups) return null;
-        return {
-          name: match.groups.name,
-          description: match.groups.description,
-        };
+        let match = line.match(REGISTRY_REGEX);
+        if (match && match.groups) {
+          return {
+            name: match.groups.name,
+            description: match.groups.description,
+          };
+        }
+
+        match = line.match(KICAD_REGEX);
+        if (match && match.groups) {
+          return {
+            name: match.groups.name,
+            description: match.groups.description || "KiCad footprint",
+          };
+        }
+
+        match = line.match(JLC_REGEX);
+        if (match && match.groups) {
+          return {
+            name: match.groups.name,
+            description: match.groups.description,
+          };
+        }
+
+        return null;
       })
       .filter((item): item is { name: string; description?: string } => item !== null);
 

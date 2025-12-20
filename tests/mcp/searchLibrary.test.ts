@@ -47,7 +47,7 @@ describe("searchLibrary", () => {
 
     const names = result.map(r => r.name);
     expect(names).toContain("ISO7342");
-  });
+  }, 30000);
 
   test("finds global components from registry (real CLI)", async () => {
     const result = await searchLibrary(
@@ -96,5 +96,37 @@ describe("searchLibrary", () => {
         r => "exports" in r && Array.isArray((r as any).exports) && (r as any).exports.includes("default")
       )
     ).toBe(true);
+  }, 30000);
+  test("finds 555 timer in global library", async () => {
+    const result = await searchLibrary(
+      "555",
+      "fuzzy",
+      "surface"
+    );
+
+    const globalResults = result.filter(r => r.source === "global");
+    expect(globalResults.length).toBeGreaterThan(0);
+
+    // Should find something like "ne555" or "lm555"
+    const has555 = globalResults.some(r =>
+      r.name.toLowerCase().includes("555")
+    );
+    expect(has555).toBe(true);
+  }, 30000);
+
+  test("finds 7400 NAND gate in global library", async () => {
+    const result = await searchLibrary(
+      "7400",
+      "fuzzy",
+      "surface"
+    );
+
+    const globalResults = result.filter(r => r.source === "global");
+    expect(globalResults.length).toBeGreaterThan(0);
+
+    const has7400 = globalResults.some(r =>
+      r.name.toLowerCase().includes("7400")
+    );
+    expect(has7400).toBe(true);
   }, 30000);
 });
