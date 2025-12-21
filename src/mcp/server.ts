@@ -37,8 +37,8 @@ export function createLibraryServer(): Server {
    */
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
-      tools: [
-        {
+      tools: {
+        add_component: {
           name: "add_component",
           description:
             "Add or update a TSX component or KiCAD footprint (.kicad_mod) in the local library. Validation is automatic.",
@@ -57,7 +57,7 @@ export function createLibraryServer(): Server {
             required: ["component_name", "file_content"],
           },
         },
-        {
+        list_local_components: {
           name: "list_local_components",
           description:
             "List components explicitly added to the local library.",
@@ -66,7 +66,7 @@ export function createLibraryServer(): Server {
             properties: {},
           },
         },
-        {
+        search_library: {
           name: "search_library",
           description:
             "Search local and global libraries for components.",
@@ -89,7 +89,7 @@ export function createLibraryServer(): Server {
             required: ["query", "mode", "depth"],
           },
         },
-      ],
+      },
     };
   });
 

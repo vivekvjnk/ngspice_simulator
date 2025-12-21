@@ -16,6 +16,13 @@ jest.mock("../../src/config/paths.js", () => {
   };
 });
 
+// Mock the searchLibrary tool to avoid network calls
+jest.mock("../../src/mcp/tools/searchLibrary.js", () => ({
+  searchLibrary: jest.fn().mockResolvedValue([
+    { name: "MockResistor", description: "A mock resistor" }
+  ]),
+}));
+
 import { server } from "../../src/mcp/server.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
@@ -57,7 +64,7 @@ describe("MCP Server (via MCP InMemoryTransport)", () => {
 
     const response = await responsePromise;
 
-    const toolNames = response.result.tools.map(
+    const toolNames = Object.values(response.result.tools).map(
       (t: any) => t.name
     );
 
