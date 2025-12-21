@@ -33,7 +33,7 @@ export const SRC_DIR = path.join(PROJECT_ROOT, "src");
  * This is the ONLY place where librarian-added components live.
  * Anything here is guaranteed to be validated.
  */
-export const LOCAL_LIBRARY_DIR = path.join(
+export const LOCAL_LIBRARY_DIR = process.env.VHL_LIBRARY_DIR || path.join(
   SRC_DIR,
   "library",
   "local"

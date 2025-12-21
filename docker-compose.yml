@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  vhl-library:
+    build: .
+    container_name: vhl-library
+    ports:
+      - "8080:8080"
+    volumes:
+      - vhl-lib:/app/lib
+    environment:
+      - VHL_TRANSPORT=http
+      - PORT=8080
+      - VHL_LIBRARY_DIR=/app/lib
+    restart: unless-stopped
+
+volumes:
+  vhl-lib:
+    driver: local

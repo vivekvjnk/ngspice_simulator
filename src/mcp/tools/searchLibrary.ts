@@ -75,7 +75,7 @@ async function searchGlobalLibrary(
 
         return null;
       })
-      .filter((item): item is { name: string; description?: string } => item !== null);
+      .filter((item) => item !== null) as { name: string; description: string | undefined }[];
 
     return parsedItems.map((item) => {
       if (depth === "deep") {
