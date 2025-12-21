@@ -34,23 +34,66 @@ Your goal is to:
 - Must be valid TypeScript/React code for `tscircuit`.
 - Must export the component function.
 - Should use standard `tscircuit` primitives (resistor, capacitor, chip, etc.) where possible.
-- Example:
-```typescript
-import { resistor } from "@tsci/seveibar.resistor";
 
-/**
- * @description My Custom Resistor
- * @functionality Limits current flow
- */
-export const MyResistor = (props: { resistance: string }) => {
-  return <resistor resistance={props.resistance} />;
-};
+**tscircuit Operational Manual - Component Creation:**
+
+## 1. Creating Custom Components
+
+To create a new component (e.g., an IC), you must wrap the component definition in a `.tsx` file.
+
+### A. Importing Footprints
+
+`tscircuit` supports direct import of KiCAD (`.kicad_mod`) footprints.
+
+  * **Source:** Obtain the correct `.kicad_mod` file.
+  * **Syntax:** `import customFootprint from "./path/to/footprint.kicad_mod"`
+
+### B. Defining the Component Symbol (MANDATORY PROPS)
+
+Use the `<chip />` primitive.
+
+  * **Footprint:** Pass the imported variable to the `footprint` prop.
+  * **Pin Mapping:** Use `pinLabels` to map physical pin numbers to datasheet names.
+  * **Mandatory Prop Handling:**
+      * **Rule:** Your component **MUST** extend `CommonLayoutProps` and spread `{...props}` onto the underlying `<chip />`.
+      * **Reason:** This allows the parent circuit to control positioning (`schX`, `pcbX`) and rotation.
+
+### C. Standard Component Template
+
+```typescript
+import type { CommonLayoutProps } from "tscircuit"
+import QFP_Footprint from "./QFP32_Generic.kicad_mod" // Relative import
+
+// 1. MANDATORY: Interface must extend CommonLayoutProps
+interface Props extends CommonLayoutProps {
+  name: string
+}
+
+export const GenericControllerIC = (props: Props) => {
+  return (
+    <chip
+      footprint={QFP_Footprint}
+      pinLabels={{
+        pin1: "VDD",
+        pin2: "GND",
+        // ... mappings
+        pin32: "VSS"
+      }}
+      // 2. CRITICAL: Spread props to enable positioning
+      {...props}
+    />
+   )
+}
 ```
+
+**Built-in Elements in `tscircuit`:**
+(You do not need to import these)
+- `<board />`, `<chip />`, `<resistor />`, `<capacitor />`, `<inductor />`, `<diode />`, `<led />`, `<transistor />`, `<mosfet />`, `<crystal />`, `<switch />`, `<jumper />`, `<trace />`, `<net />`, `<via />`, `<footprint />`, `<pinheader />`, `<group />`, `<subcircuit />`, `<testpoint />`, `<hole />`
 
 **Workflow:**
 1. Read the SCUD file.
 2. Parse the components.
 3. Search and Verify.
-4. Create missing components.
+4. Create missing components using the guidelines above.
 5. Append the "Library Mapping" section to the SCUD file.
 """

@@ -13,7 +13,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="Librarian Agent for VHL")
     parser.add_argument(
-        "scud_path", 
+        "--scud_path", 
         help="Path to the SCUD (Shared Circuit Understanding Document) file"
     )
     parser.add_argument(
