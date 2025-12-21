@@ -1,0 +1,16 @@
+2025-12-21 14:57:45,228 - DEBUG - asyncio - selector_events.py:64 - Using selector: EpollSelector
+2025-12-21 14:58:07,717 - DEBUG - asyncio - selector_events.py:64 - Using selector: EpollSelector
+2025-12-21 15:04:03,864 - DEBUG - lmnr.opentelemetry_lib.opentelemetry.instrumentation.anthropic - __init__.py:804 - Successfully wrapped anthropic.resources.completions.Completions.create
+2025-12-21 15:04:03,872 - DEBUG - lmnr.opentelemetry_lib.opentelemetry.instrumentation.anthropic - __init__.py:804 - Successfully wrapped anthropic.resources.messages.Messages.create
+2025-12-21 15:04:03,875 - DEBUG - lmnr.opentelemetry_lib.opentelemetry.instrumentation.anthropic - __init__.py:804 - Successfully wrapped anthropic.resources.messages.Messages.stream
+2025-12-21 15:04:03,877 - DEBUG - lmnr.opentelemetry_lib.opentelemetry.instrumentation.anthropic - __init__.py:804 - Successfully wrapped anthropic.resources.messages.AsyncMessages.stream
+2025-12-21 15:04:03,880 - DEBUG - lmnr.opentelemetry_lib.opentelemetry.instrumentation.anthropic - __init__.py:804 - Successfully wrapped anthropic.resources.beta.messages.messages.Messages.create
+2025-12-21 15:04:03,883 - DEBUG - lmnr.opentelemetry_lib.opentelemetry.instrumentation.anthropic - __init__.py:804 - Successfully wrapped anthropic.resources.beta.messages.messages.Messages.stream
+2025-12-21 15:04:03,887 - DEBUG - lmnr.opentelemetry_lib.opentelemetry.instrumentation.anthropic - __init__.py:804 - Successfully wrapped anthropic.resources.beta.messages.messages.AsyncMessages.stream
+2025-12-21 15:04:03,890 - DEBUG - lmnr.opentelemetry_lib.opentelemetry.instrumentation.anthropic - __init__.py:804 - Successfully wrapped anthropic.lib.bedrock._beta_messages.Messages.create
+2025-12-21 15:04:03,893 - DEBUG - lmnr.opentelemetry_lib.opentelemetry.instrumentation.anthropic - __init__.py:808 - Failed to wrap anthropic.lib.bedrock._beta_messages.Messages.stream: type object 'Messages' has no attribute 'stream'
+2025-12-21 15:04:03,899 - DEBUG - lmnr.opentelemetry_lib.opentelemetry.instrumentation.anthropic - __init__.py:808 - Failed to wrap anthropic.lib.bedrock._beta_messages.AsyncMessages.stream: type object 'AsyncMessages' has no attribute 'stream'
+2025-12-21 15:04:07,176 - DEBUG - browser_use.utils - profile.py:209 - Display size: width=1920 height=1200
+2025-12-21 15:04:07,910 - INFO - librarian_agent.agent - agent.py:87 - Starting Librarian Agent for SCUD: test_scud.md
+2025-12-21 15:04:07,913 - INFO - librarian_agent.agent - agent.py:101 - Librarian Agent finished processing.
+2025-12-21 15:04:07,918 - DEBUG - asyncio - selector_events.py:64 - Using selector: EpollSelector
