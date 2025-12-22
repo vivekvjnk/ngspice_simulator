@@ -16,6 +16,20 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { HttpServerTransport } from "./transport/HttpServerTransport.js";
 
 /**
+ * Helper: always return structured JSON for OpenHands
+ */
+function jsonResult(value: unknown) {
+  return {
+    content: [
+      {
+        type: "json",
+        value,
+      },
+    ],
+  };
+}
+
+/**
  * Create and configure the VHL Library MCP Server.
  * This function isolates the server core from the transport.
  */
@@ -37,8 +51,8 @@ export function createLibraryServer(): Server {
    */
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
-      tools: {
-        add_component: {
+      tools: [
+        {
           name: "add_component",
           description:
             "Add or update a TSX component or KiCAD footprint (.kicad_mod) in the local library. Validation is automatic.",
@@ -47,17 +61,19 @@ export function createLibraryServer(): Server {
             properties: {
               component_name: {
                 type: "string",
-                description: "Logical name of the component (e.g. 'MyResistor') or filename with extension (e.g. 'footprint.kicad_mod')",
+                description:
+                  "Logical name of the component (e.g. 'MyResistor') or filename with extension (e.g. 'footprint.kicad_mod')",
               },
               file_content: {
                 type: "string",
-                description: "Complete file content (TSX or KiCAD footprint)",
+                description:
+                  "Complete file content (TSX or KiCAD footprint)",
               },
             },
             required: ["component_name", "file_content"],
           },
         },
-        list_local_components: {
+        {
           name: "list_local_components",
           description:
             "List components explicitly added to the local library.",
@@ -66,7 +82,7 @@ export function createLibraryServer(): Server {
             properties: {},
           },
         },
-        search_library: {
+        {
           name: "search_library",
           description:
             "Search local and global libraries for components.",
@@ -89,7 +105,7 @@ export function createLibraryServer(): Server {
             required: ["query", "mode", "depth"],
           },
         },
-      },
+      ],
     };
   });
 
@@ -106,32 +122,21 @@ export function createLibraryServer(): Server {
           file_content: string;
         };
 
-        const result = await addComponent(
-          component_name,
-          file_content
-        );
+        const result = await addComponent(component_name, file_content);
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return jsonResult({
+          success: true,
+          component: result,
+        });
       }
 
       case "list_local_components": {
-        const result = await listLocalComponents();
+        const components = await listLocalComponents();
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return jsonResult({
+          components,
+          count: components.length,
+        });
       }
 
       case "search_library": {
@@ -141,20 +146,15 @@ export function createLibraryServer(): Server {
           depth: "surface" | "deep";
         };
 
-        const result = await searchLibrary(
+        const matches = await searchLibrary(query, mode, depth);
+
+        return jsonResult({
           query,
           mode,
-          depth
-        );
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+          depth,
+          results: matches,
+          count: matches.length,
+        });
       }
 
       default:
@@ -165,9 +165,7 @@ export function createLibraryServer(): Server {
   return server;
 }
 
-// Export a singleton for backward compatibility if needed, 
-// but strictly speaking we should use createLibraryServer.
-// We'll create one here just in case other modules import it directly.
+// Export a singleton for backward compatibility
 export const server = createLibraryServer();
 
 export async function runServer() {

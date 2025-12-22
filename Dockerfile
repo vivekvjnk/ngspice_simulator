@@ -2,7 +2,21 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Install pnpm
+# 1. Install system dependencies required to install Bun
+RUN apt-get update && apt-get install -y \
+    curl \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# 2. Install Bun
+RUN curl -fsSL https://bun.sh/install | bash
+
+# 3. Add Bun to the system PATH
+# Note: Since this runs as root, Bun installs to /root/.bun
+ENV BUN_INSTALL="/root/.bun"
+ENV PATH="$BUN_INSTALL/bin:$PATH"
+
+# Install pnpm (original)
 RUN npm install -g pnpm
 
 COPY package.json pnpm-lock.yaml ./
