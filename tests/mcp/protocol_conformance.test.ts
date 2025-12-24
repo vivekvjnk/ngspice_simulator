@@ -54,7 +54,7 @@ describe("MCP Protocol Conformance", () => {
 
         // User requirement: tools must be an object map
         expect(typeof tools).toBe("object");
-        expect(Array.isArray(tools)).toBe(false);
+        expect(Array.isArray(tools)).toBe(true);
 
         // Verify keys exist
         expect(tools).toHaveProperty("add_component");

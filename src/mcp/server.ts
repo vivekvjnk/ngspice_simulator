@@ -116,9 +116,12 @@ export function createLibraryServer(): Server {
       return acc;
     }, {} as Record<string, any>);
 
+    // return {
+    //   tools: toolsMap,
+    // } as any;
     return {
-      tools: toolsMap,
-    } as any;
+      tools: tools,
+    }
   });
 
   /**

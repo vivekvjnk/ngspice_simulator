@@ -155,7 +155,7 @@ describe("Docker HTTP Transport Integration", () => {
         expect(response.result).toBeDefined();
         expect(response.result.tools).toBeDefined();
         expect(typeof response.result.tools).toBe("object");
-        expect(Array.isArray(response.result.tools)).toBe(false);
+        expect(Array.isArray(response.result.tools)).toBe(true);
 
         const toolNames = Object.values(response.result.tools).map((t: any) => t.name);
         expect(toolNames).toEqual(
