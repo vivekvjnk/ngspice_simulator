@@ -51,6 +51,11 @@ function startImport(query: string): Promise<{ sessionId: string; options: strin
     let buffer = "";
     const options = new Set<string>();
 
+    // If the process can't start or crashes
+    proc.on("error", (err) => {
+      reject(err); // This triggers the .catch() or try/catch block of the caller
+    });
+
     proc.stdout.on("data", (chunk) => {
       buffer += chunk.toString();
 
