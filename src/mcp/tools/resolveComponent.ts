@@ -15,6 +15,10 @@ export type ResolveResult =
     options: string[];
   }
   | {
+    status: "no_results";
+    message: string;
+  }
+  | {
     status: "error";
     message: string;
   };
@@ -48,6 +52,7 @@ function startImport(query: string): Promise<{ sessionId: string; options: strin
       stdio: "pipe",
     });
 
+    console.log("Searching for: ", query, "...");
     let buffer = "";
     const options = new Set<string>();
 
@@ -57,7 +62,12 @@ function startImport(query: string): Promise<{ sessionId: string; options: strin
     });
 
     proc.stdout.on("data", (chunk) => {
-      buffer += chunk.toString();
+      const text = chunk.toString();
+      buffer += text;
+      console.log("tsci stdout:", text);
+      if (buffer.includes("No results found matching your query.")) {
+        resolve({ sessionId: "no_results", options: [] });
+      }
 
       // crude but stable extraction
       buffer.split("\n").forEach(line => {
@@ -68,6 +78,7 @@ function startImport(query: string): Promise<{ sessionId: string; options: strin
       if (options.size > 0) {
         const sessionId = crypto.randomUUID();
         sessions.set(sessionId, { proc, options: [...options] });
+        console.log("Options found:", [...options]);
         resolve({ sessionId, options: [...options] });
       }
     });
@@ -77,8 +88,12 @@ function startImport(query: string): Promise<{ sessionId: string; options: strin
     });
 
     proc.on("exit", (code) => {
+      console.log("tsci exit:", code);
+      if (buffer.includes("No results found matching your query.")) {
+        resolve({ sessionId: "no_results", options: [] });
+      }
       if (options.size === 0) {
-        reject(new Error(`tsci exited with code ${code} and no options found`));
+        reject(new Error(`startImport: tsci exited with code ${code} and no options found`));
       }
     });
 
@@ -125,7 +140,7 @@ async function completeImport(selection: string): Promise<string> {
 
     session.proc.on("exit", (code) => {
       sessions.delete(sessionId);
-      reject(new Error(`tsci exited with code ${code} without confirming import`));
+      reject(new Error(`completeImport: tsci exited with code ${code} without confirming import`));
     });
 
     session.proc.on("error", (err) => {
@@ -154,6 +169,7 @@ export async function resolveComponent(
     if (s.options.includes(query)) {
       try {
         const importedPath = await completeImport(query);
+        console.log("Imported:", importedPath);
         return {
           status: "resolved",
           component: query,
@@ -168,14 +184,21 @@ export async function resolveComponent(
     }
   }
 
-  // otherwise start new import
   try {
-    const { options } = await startImport(query);
+    const { sessionId, options } = await startImport(query);
+    if (sessionId === "no_results") {
+      return {
+        status: "no_results",
+        message: "No results found matching your query.",
+      };
+    }
+    console.log("Returning options...")
     return {
       status: "selection_required",
       options,
     };
   } catch (err) {
+    console.log("resolveComponent Error:", err);
     return {
       status: "error",
       message: "No components found or tsci error",

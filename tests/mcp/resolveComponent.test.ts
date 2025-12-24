@@ -132,4 +132,26 @@ describe("resolveComponent", () => {
             expect(result.message).toContain("No components found");
         }
     });
+
+    test("handles 'No results found' message gracefully", async () => {
+        const mockProc = new EventEmitter() as any;
+        mockProc.stdout = new EventEmitter();
+        mockProc.stderr = new EventEmitter();
+        mockProc.kill = jest.fn();
+
+        (spawn as any).mockReturnValue(mockProc);
+
+        const promise = resolveComponent("nonexistent", "surface");
+
+        setTimeout(() => {
+            mockProc.stdout.emit("data", Buffer.from("No results found matching your query.\n"));
+        }, 10);
+
+        const result = await promise;
+
+        expect(result.status).toBe("no_results");
+        if (result.status === "no_results") {
+            expect(result.message).toBe("No results found matching your query.");
+        }
+    });
 });

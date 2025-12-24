@@ -83,7 +83,7 @@ export function createLibraryServer(): Server {
       {
         name: "list_local_components",
         description:
-          "List components explicitly added to the local library.",
+          "List components available in the local library.",
         inputSchema: {
           type: "object",
           properties: {},
@@ -98,7 +98,7 @@ export function createLibraryServer(): Server {
           properties: {
             query: {
               type: "string",
-              description: "Search query or full component name for selection",
+              description: "Search query or full component name for selection. Always use approximate component name for search. Use specific component name only after verifying the search results. Eg: Search NE555(approximate query) --> System returns options [NE555, NE555P, NE555N] --> Import NE555P with specific query. NOTE: Never try to import standard passive components like R, C, L, etc.",
             },
             depth: {
               type: "string",
