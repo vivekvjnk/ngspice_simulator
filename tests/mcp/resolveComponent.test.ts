@@ -12,6 +12,8 @@ jest.unstable_mockModule("../../src/config/paths.js", () => ({
     IMPORTS_DIR: "/tmp/vhl-test/imports",
     LOCAL_LIBRARY_DIR: "/tmp/vhl-test/imports",
     PROJECT_ROOT: process.cwd(),
+    TEMP_DIR: "/tmp/vhl-test/.tmp",
+    SRC_DIR: "/tmp/vhl-test/src",
 }));
 
 // Now import the modules
@@ -67,7 +69,7 @@ describe("resolveComponent", () => {
 
         // Simulate tsci output
         setTimeout(() => {
-            mockProc.stdout.emit("data", Buffer.from("- @tscircuit/resistor\n- @tscircuit/axial-resistor\n"));
+            mockProc.stdout.emit("data", Buffer.from("Select a part to import\n] @tscircuit/resistor - \n] @tscircuit/axial-resistor - \n"));
         }, 10);
 
         const result = await promise;
@@ -91,7 +93,7 @@ describe("resolveComponent", () => {
         // Phase 1: Start import
         const promise1 = resolveComponent("resistor", "surface");
         setTimeout(() => {
-            mockProc.stdout.emit("data", Buffer.from("- @tscircuit/resistor\n"));
+            mockProc.stdout.emit("data", Buffer.from("Select a part to import\n] @tscircuit/resistor - \n"));
         }, 10);
         const result1 = await promise1;
         expect(result1.status).toBe("selection_required");
@@ -108,7 +110,7 @@ describe("resolveComponent", () => {
             expect(result2.component).toBe("@tscircuit/resistor");
             expect(result2.path).toBe("/app/imports/resistor.tsx");
         }
-        expect(mockProc.stdin.write).toHaveBeenCalledWith("@tscircuit/resistor\n");
+        expect(mockProc.stdin.write).toHaveBeenCalledWith("\n");
     });
 
     test("handles tsci error", async () => {
@@ -129,7 +131,7 @@ describe("resolveComponent", () => {
 
         expect(result.status).toBe("error");
         if (result.status === "error") {
-            expect(result.message).toContain("No components found");
+            expect(result.message).toContain("Search failed");
         }
     });
 

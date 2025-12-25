@@ -2,7 +2,8 @@ import fs from "fs/promises";
 import path from "path";
 import { spawn, ChildProcessWithoutNullStreams } from "child_process";
 import crypto from "crypto";
-import { IMPORTS_DIR } from "../../config/paths.js";
+import { LOCAL_LIBRARY_DIR } from "../../config/paths.js";
+import { getFilesRecursive } from "../../runtime/libraryFs.js";
 
 export type ResolveResult =
   | { status: "resolved"; component: string; path: string }
@@ -22,11 +23,11 @@ const sessions = new Map<string, ImportSession>();
  */
 async function resolveLocal(query: string): Promise<string | null> {
   try {
-    const files = await fs.readdir(IMPORTS_DIR);
+    const files = await getFilesRecursive(LOCAL_LIBRARY_DIR);
     const match = files.find(f =>
-      f.toLowerCase().includes(query.toLowerCase()) && f.endsWith(".tsx")
+      path.basename(f).toLowerCase().includes(query.toLowerCase()) && f.endsWith(".tsx")
     );
-    return match ? path.join(IMPORTS_DIR, match) : null;
+    return match || null;
   } catch {
     return null;
   }
@@ -38,7 +39,7 @@ async function resolveLocal(query: string): Promise<string | null> {
 function startImport(query: string): Promise<{ sessionId: string; options: string[] }> {
   return new Promise((resolve, reject) => {
     const proc = spawn("tsci", ["import", query], {
-      cwd: process.cwd(),
+      cwd: LOCAL_LIBRARY_DIR,
       stdio: "pipe",
     });
 
@@ -68,7 +69,7 @@ function startImport(query: string): Promise<{ sessionId: string; options: strin
         lines.forEach(line => {
           if (line.includes("Select a part to import")) return;
           // Capture the name between [source] and the trailing dash
-          const cleanMatch = line.match(/\]\s*(.*?)\s*-/);
+          const cleanMatch = line.match(/\]\s*(.*)\s-/);
           if (cleanMatch && cleanMatch[1]) {
             options.add(cleanMatch[1].trim());
           }
@@ -141,8 +142,8 @@ async function completeImport(selection: string): Promise<string> {
 
     const onOutput = (chunk: Buffer) => {
       const text = chunk.toString();
-      // Matches both "Imported /path" and "✔ Imported /path"
-      const match = text.match(/(?:Imported|✔ Imported)\s+([^\s]+\.tsx)/i);
+      // Matches "Imported ... /path.tsx" or "✔ Imported ... /path.tsx"
+      const match = text.match(/(?:Imported|✔ Imported).*?([^\s]+\.tsx)/i);
 
       if (match) {
         const filePath = match[1].trim();

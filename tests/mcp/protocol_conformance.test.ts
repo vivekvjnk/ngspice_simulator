@@ -39,7 +39,7 @@ describe("MCP Protocol Conformance", () => {
         await serverTransport.start();
     });
 
-    test("tools/list returns a dictionary (object map), not an array", async () => {
+    test("tools/list returns an array of tools as per MCP spec", async () => {
         const responsePromise = nextMessage();
 
         await clientTransport.send({
@@ -52,16 +52,19 @@ describe("MCP Protocol Conformance", () => {
         const response = await responsePromise;
         const tools = response.result.tools;
 
-        // User requirement: tools must be an object map
-        expect(typeof tools).toBe("object");
+        // MCP spec: tools must be an array
         expect(Array.isArray(tools)).toBe(true);
 
+        const toolNames = tools.map((t: any) => t.name);
+
         // Verify keys exist
-        expect(tools).toHaveProperty("add_component");
-        expect(tools).toHaveProperty("list_local_components");
-        expect(tools).toHaveProperty("resolve_component");
+        expect(toolNames).toContain("add_component");
+        expect(toolNames).toContain("list_local_components");
+        expect(toolNames).toContain("resolve_component");
 
         // Verify structure of a tool
-        expect(tools["list_local_components"]).toHaveProperty("name", "list_local_components");
+        const listTool = tools.find((t: any) => t.name === "list_local_components");
+        expect(listTool).toBeDefined();
+        expect(listTool).toHaveProperty("name", "list_local_components");
     });
 });

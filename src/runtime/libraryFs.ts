@@ -59,3 +59,20 @@ export async function cleanupTempFile(
     // Intentionally ignored
   }
 }
+/**
+ * Recursively find all files in a directory.
+ */
+export async function getFilesRecursive(dir: string): Promise<string[]> {
+  try {
+    const dirents = await fs.readdir(dir, { withFileTypes: true });
+    const files = await Promise.all(
+      dirents.map((dirent) => {
+        const res = path.resolve(dir, dirent.name);
+        return dirent.isDirectory() ? getFilesRecursive(res) : res;
+      })
+    );
+    return Array.prototype.concat(...files);
+  } catch {
+    return [];
+  }
+}
