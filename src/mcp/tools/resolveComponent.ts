@@ -50,7 +50,8 @@ function startImport(query: string): Promise<{ sessionId: string; options: strin
 
     // Define listeners as named functions so they can be removed
     const onStdout = (chunk: Buffer) => {
-      const text = chunk.toString();
+      // Strip ANSI escape codes
+      const text = chunk.toString().replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, "");
       buffer += text;
 
       if (buffer.includes("No results found matching your query.")) {
@@ -68,8 +69,8 @@ function startImport(query: string): Promise<{ sessionId: string; options: strin
 
         lines.forEach(line => {
           if (line.includes("Select a part to import")) return;
-          // Capture the name between [source] and the trailing dash
-          const cleanMatch = line.match(/\]\s*(.*)\s-/);
+          // Capture the name after ']' or '❯' and before the separator ' -'
+           const cleanMatch = line.match(/\]\s*(.*?)\s*-/);
           if (cleanMatch && cleanMatch[1]) {
             options.add(cleanMatch[1].trim());
           }

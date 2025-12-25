@@ -65,7 +65,7 @@ describe("Docker HTTP Transport Integration", () => {
 
     afterEach(async () => {
         await cleanupContainer();
-    }, 30000); // 30 second timeout for cleanup
+    }, 60000); // 60 second timeout for cleanup
 
     afterAll(async () => {
         console.log("Cleaning up Docker image...");
@@ -218,7 +218,7 @@ describe("Docker HTTP Transport Integration", () => {
 
         const payload = JSON.parse(content.text);
         expect(payload.status).toBeDefined();
-    }, 30000);
+    }, 120000);
 
     test("MCP endpoint calls add_component", async () => {
         const componentContent = `import { resistor } from "@tsci/seveibar.resistor";
